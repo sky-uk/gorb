@@ -10,11 +10,22 @@ install:
   - go get -v github.com/Masterminds/glide
   - go get -u gopkg.in/alecthomas/gometalinter.v1
   - gometalinter.v1 --install
-  - glide install -v 
+  - glide install -v
 
 script:
   - ./.travis/test.sh
   - gometalinter.v1 --deadline=5m --vendor --disable=gotype --disable=errcheck
+  - make binary
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
+
+deploy:
+  provider: releases
+  api_key:
+    secure: nljb79NsOEDbotkM/B8I4vrmwinVxrrC19AnDu0l014Rc80CTxfS7FEr+3XLvnGbQlxyK8qm4CIZbG1cLuh2DJ57dUQ5o/15u0oyg1geOtFhw4tEg3c14i1ta5HSwojc8uKegV3WfVNG2aC69OKpRn8Xu3z1cFtpHoXhHLuEV/d2Z0Qk53wh9/7/b2ukJVYwiaYzlPgeN/0nuSb/AVyvlr7o1Z4iyNkcawwE9OlHfoAuv6qQrXE7qHIgsGEOS8iSddNl4PsvZeybo+3ucI4AIQeawcA2v0ZQGMnKpL9mmmfJ5zOnYM2xcRjSV5jXuYpXl/lKwzA/1ghjlYWRAA8wPHuDOXXv2Oay4J2KqlYiiha7/SRAtM19/PrTBaorv3Xx9MdQXHPhWEckaQmmBP9zOHeV1fGR+reJukMf35lXMDcRzbCcO7GCsvzzIX07pFKxgzYMWhdR8lewIfJgnkuF1W4iWimGa0F/rZsfTLZW9YwgkqnQtmrHK7H1YQJnYLAuMNlkqgjuqrnif/TrAiHxerZthdWWqzHF8Tbc3Zv/a98DA9gXIBpWlfaheq2n86bQLuNiRmLiBNYv+CQCJDyAWZ2tf23ZTG5nLpPXlZRqI3ZcZBDWakXD1YWaCqKByrETwjgNVk6pvY5LVvjnhoTUBxAFHd2UG2E/5HAyf7IQzyI=
+  file: docker/gorb
+  skip_cleanup: true
+  on:
+    repo: sky-uk/gorb
+    tags: true
