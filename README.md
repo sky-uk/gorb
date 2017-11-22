@@ -64,6 +64,10 @@ This scheduler has two flags: sh-fallback, which enables fallback to a different
 
 For more information and various configuration options description, consult [`man 8 ipvsadm`](http://linux.die.net/man/8/ipvsadm).
 
+## Releasing (sky-uk)
+
+Tag the commit in master and push it to release it. Only maintainers can do this.
+
 ## TODO
 
 - [ ] Add more options for Gorb Pulse: thresholds, exponential back-offs and so on.
