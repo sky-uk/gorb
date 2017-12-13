@@ -204,8 +204,8 @@ func TestPulseUpdateRemovesStashWhenDeletedAfterNotification(t *testing.T) {
 	mockIpvs := &fakeIpvs{}
 
 	c := newRoutineContext(backends, mockIpvs)
-	c.processPulseUpdate(stash, pulse.Update{pulse.ID{VsID: vsID, RsID: rsID}, pulse.Metrics{Status:pulse.StatusRemoved}})
+	c.processPulseUpdate(stash, pulse.Update{pulse.ID{VsID: vsID, RsID: rsID}, pulse.Metrics{Status: pulse.StatusRemoved}})
 
 	assert.Empty(t, stash)
 	mockIpvs.AssertExpectations(t)
-
+}
