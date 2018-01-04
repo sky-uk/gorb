@@ -56,6 +56,8 @@ func NewStore(storeURLs []string, storeServicePath, storeBackendPath string, syn
 		backend = store.ZK
 	case "boltdb":
 		backend = store.BOLTDB
+	case "mock":
+		backend = "mock"
 	default:
 		return nil, errors.New("unsupported uri scheme : " + scheme)
 	}
