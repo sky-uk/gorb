@@ -47,7 +47,7 @@ var (
 	consul           = flag.String("c", "", "URL for Consul HTTP API")
 	vipInterface     = flag.String("vipi", "", "interface to add VIPs")
 	storeURLs        = flag.String("store", "", "comma delimited list of store urls for sync data. All urls must have" +
-		" identical schemas and paths.")
+		" identical schemes and paths.")
 	storeTimeout     = flag.Int64("store-sync-time", 60, "sync-time for store")
 	storeServicePath = flag.String("store-service-path", "services", "store service path")
 	storeBackendPath = flag.String("store-backend-path", "backends", "store backend path")

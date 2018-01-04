@@ -36,7 +36,7 @@ func NewStore(storeURLs []string, storeServicePath, storeBackendPath string, syn
 		}
 		uriScheme := strings.ToLower(uri.Scheme)
 		if scheme != "" && scheme != uriScheme {
-			return nil, errors.New("schemas must be the same for all store URLs")
+			return nil, errors.New("schemes must be the same for all store URLs")
 		}
 		if storePath != "" && storePath != uri.Path {
 			return nil, errors.New("paths must be the same for all store URLs")
@@ -57,7 +57,7 @@ func NewStore(storeURLs []string, storeServicePath, storeBackendPath string, syn
 	case "boltdb":
 		backend = store.BOLTDB
 	default:
-		return nil, errors.New("unsupported uri schema : " + scheme)
+		return nil, errors.New("unsupported uri scheme : " + scheme)
 	}
 	kvstore, err := libkv.NewStore(
 		backend,
