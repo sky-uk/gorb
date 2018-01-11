@@ -34,6 +34,8 @@ ENV PATHWORK=/go/src/github.com/kobolog/gorb
 ADD ./ $PATHWORK
 WORKDIR $PATHWORK
 
+RUN glide install -v
+
 ADD ./docker/* /
 RUN chmod 755 /entrypoint.sh
 RUN chmod 755 /autocompile.py
