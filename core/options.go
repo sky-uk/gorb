@@ -26,9 +26,8 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/kobolog/gorb/ipvs-shim"
 	"github.com/kobolog/gorb/pulse"
-
-	"github.com/tehnerd/gnl2go"
 )
 
 // Possible validation errors.
@@ -100,7 +99,7 @@ func (o *ServiceOptions) Validate(defaultHost net.IP) error {
 
 	if o.Flags != "" {
 		for _, flag := range strings.Split(o.Flags, "|") {
-			if _, ok := schedulerFlags[flag]; !ok {
+			if ok := ipvs_shim.ValidFlag(flag); !ok {
 				return ErrUnknownFlag
 			}
 		}
@@ -140,20 +139,17 @@ func (o *ServiceOptions) CompareStoreOptions(options *ServiceOptions) bool {
 type BackendOptions struct {
 	Host   string         `json:"host"`
 	Port   uint16         `json:"port"`
-	Weight int32          `json:"weight"`
+	Weight uint32         `json:"weight"`
 	Method string         `json:"method"`
 	Pulse  *pulse.Options `json:"pulse"`
 	VsID   string         `json:"vsid,omitempty"`
 
 	// Host string resolved to an IP, including DNS lookup.
 	host net.IP
-
-	// Forwarding method string converted to a forwarding method number.
-	methodID uint32
 }
 
-// Validate fills missing fields and validates backend configuration.
-func (o *BackendOptions) Validate() error {
+// SetDefaults fills missing fields and validates backend configuration.
+func (o *BackendOptions) SetDefaults() error {
 	if len(o.Host) == 0 || o.Port == 0 {
 		return ErrMissingEndpoint
 	}
@@ -173,15 +169,7 @@ func (o *BackendOptions) Validate() error {
 	}
 
 	o.Method = strings.ToLower(o.Method)
-
-	switch o.Method {
-	case "dr":
-		o.methodID = gnl2go.IPVS_DIRECTROUTE
-	case "nat":
-		o.methodID = gnl2go.IPVS_MASQUERADING
-	case "tunnel", "ipip":
-		o.methodID = gnl2go.IPVS_TUNNELING
-	default:
+	if !ipvs_shim.ValidForwarding(o.Method) {
 		return ErrUnknownMethod
 	}
 

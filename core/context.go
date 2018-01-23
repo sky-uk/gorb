@@ -31,24 +31,18 @@ import (
 	"github.com/kobolog/gorb/util"
 	"github.com/vishvananda/netlink"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/tehnerd/gnl2go"
 	"strings"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/kobolog/gorb/ipvs-shim"
 )
 
 // Possible runtime errors.
 var (
-	schedulerFlags = map[string]int{
-		"sh-fallback": gnl2go.IP_VS_SVC_F_SCHED_SH_FALLBACK,
-		"sh-port": gnl2go.IP_VS_SVC_F_SCHED_SH_PORT,
-		"flag-1": gnl2go.IP_VS_SVC_F_SCHED1,
-		"flag-2": gnl2go.IP_VS_SVC_F_SCHED2,
-		"flag-3": gnl2go.IP_VS_SVC_F_SCHED3,
-	}
 	ErrIpvsSyscallFailed = errors.New("error while calling into IPVS")
-	ErrObjectExists = errors.New("specified object already exists")
-	ErrObjectNotFound = errors.New("unable to locate specified object")
-	ErrIncompatibleAFs = errors.New("incompatible address families")
+	ErrObjectExists      = errors.New("specified object already exists")
+	ErrObjectNotFound    = errors.New("unable to locate specified object")
+	ErrIncompatibleAFs   = errors.New("incompatible address families")
 )
 
 type service struct {
@@ -64,7 +58,7 @@ type backend struct {
 
 // Context abstacts away the underlying IPVS bindings implementation.
 type Context struct {
-	ipvs         Ipvs
+	ipvs         IPVS
 	endpoint     net.IP
 	services     map[string]*service
 	backends     map[string]*backend
@@ -76,15 +70,13 @@ type Context struct {
 	store        *Store
 }
 
-type Ipvs interface {
+type IPVS interface {
 	Init() error
-	Exit()
 	Flush() error
-	AddService(vip string, port uint16, protocol uint16, sched string) error
-	AddServiceWithFlags(vip string, port uint16, protocol uint16, sched string, flags []byte) error
+	AddService(vip string, port uint16, protocol uint16, sched string, flags []string) error
 	DelService(vip string, port uint16, protocol uint16) error
-	AddDestPort(vip string, vport uint16, rip string, rport uint16, protocol uint16, weight int32, fwd uint32) error
-	UpdateDestPort(vip string, vport uint16, rip string, rport uint16, protocol uint16, weight int32, fwd uint32) error
+	AddDestPort(vip string, vport uint16, rip string, rport uint16, protocol uint16, weight uint32, fwd string) error
+	UpdateDestPort(vip string, vport uint16, rip string, rport uint16, protocol uint16, weight uint32, fwd string) error
 	DelDestPort(vip string, vport uint16, rip string, rport uint16, protocol uint16) error
 }
 
@@ -93,7 +85,7 @@ func NewContext(options ContextOptions) (*Context, error) {
 	log.Info("initializing IPVS context")
 
 	ctx := &Context{
-		ipvs:     &gnl2go.IpvsClient{},
+		ipvs:     ipvs_shim.New(),
 		services: make(map[string]*service),
 		backends: make(map[string]*backend),
 		pulseCh:  make(chan pulse.Update),
@@ -166,9 +158,6 @@ func (ctx *Context) Close() {
 	for vsID := range ctx.services {
 		ctx.RemoveService(vsID)
 	}
-
-	// This is not strictly required, as far as I know.
-	ctx.ipvs.Exit()
 }
 
 // CreateService registers a new virtual service with IPVS.
@@ -206,32 +195,13 @@ func (ctx *Context) createService(vsID string, opts *ServiceOptions) error {
 		}
 	}
 
-	var flags int
-	for _, flag := range strings.Split(opts.Flags, "|") {
-		flags = flags | schedulerFlags[flag]
+	var flags []string
+	if len(opts.Flags) > 0 {
+		flags = strings.Split(opts.Flags, "|")
 	}
-
-	if flags != 0 {
-		if err := ctx.ipvs.AddServiceWithFlags(
-			opts.host.String(),
-			opts.Port,
-			opts.protocol,
-			opts.Method,
-			gnl2go.U32ToBinFlags(uint32(flags)),
-		); err != nil {
-			log.Errorf("error while creating virtual service: %s", err)
-			return ErrIpvsSyscallFailed
-		}
-	} else {
-		if err := ctx.ipvs.AddService(
-			opts.host.String(),
-			opts.Port,
-			opts.protocol,
-			opts.Method,
-		); err != nil {
-			log.Errorf("error while creating virtual service: %s", err)
-			return ErrIpvsSyscallFailed
-		}
+	if err := ctx.ipvs.AddService(opts.host.String(), opts.Port, opts.protocol, opts.Method, flags); err != nil {
+		log.Errorf("error while creating virtual service: %s", err)
+		return ErrIpvsSyscallFailed
 	}
 
 	ctx.services[vsID] = &service{options: opts}
@@ -252,7 +222,7 @@ func (ctx *Context) CreateService(vsID string, opts *ServiceOptions) error {
 
 // CreateBackend registers a new backend with a virtual service.
 func (ctx *Context) createBackend(vsID, rsID string, opts *BackendOptions) error {
-	if err := opts.Validate(); err != nil {
+	if err := opts.SetDefaults(); err != nil {
 		return err
 	}
 	p, err := pulse.New(opts.host.String(), opts.Port, opts.Pulse)
@@ -294,8 +264,8 @@ func (ctx *Context) createBackend(vsID, rsID string, opts *BackendOptions) error
 		opts.host.String(),
 		opts.Port,
 		vs.options.protocol,
-		int32(opts.Weight),
-		opts.methodID,
+		opts.Weight,
+		opts.Method,
 	); err != nil {
 		log.Errorf("error while creating backend: %s", err)
 		return ErrIpvsSyscallFailed
@@ -317,7 +287,7 @@ func (ctx *Context) CreateBackend(vsID, rsID string, opts *BackendOptions) error
 }
 
 // UpdateBackend updates the specified backend's weight.
-func (ctx *Context) updateBackend(vsID, rsID string, weight int32) (int32, error) {
+func (ctx *Context) updateBackend(vsID, rsID string, weight uint32) (uint32, error) {
 	rs, exists := ctx.backends[rsID]
 
 	if !exists {
@@ -334,13 +304,13 @@ func (ctx *Context) updateBackend(vsID, rsID string, weight int32) (int32, error
 		rs.options.Port,
 		rs.service.options.protocol,
 		weight,
-		rs.options.methodID,
+		rs.options.Method,
 	); err != nil {
 		log.Errorf("error while updating backend [%s/%s]", vsID, rsID)
 		return 0, ErrIpvsSyscallFailed
 	}
 
-	var result int32
+	var result uint32
 
 	// Save the old backend weight and update the current backend weight.
 	result, rs.options.Weight = rs.options.Weight, weight
@@ -358,7 +328,7 @@ func (ctx *Context) updateBackend(vsID, rsID string, weight int32) (int32, error
 }
 
 // UpdateBackend updates the specified backend's weight.
-func (ctx *Context) UpdateBackend(vsID, rsID string, weight int32) (int32, error) {
+func (ctx *Context) UpdateBackend(vsID, rsID string, weight uint32) (uint32, error) {
 	ctx.mutex.Lock()
 	defer ctx.mutex.Unlock()
 	return ctx.updateBackend(vsID, rsID, weight)
