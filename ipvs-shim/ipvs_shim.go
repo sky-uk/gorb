@@ -32,6 +32,7 @@ type IPVS interface {
 	Init() error
 	Flush() error
 	AddService(vip string, port uint16, protocol uint16, sched string, flags []string) error
+	UpdateService(vip string, port uint16, protocol uint16, sched string, flags []string) error
 	DelService(vip string, port uint16, protocol uint16) error
 	AddDestPort(vip string, vport uint16, rip string, rport uint16, protocol uint16, weight uint32, fwd string) error
 	UpdateDestPort(vip string, vport uint16, rip string, rport uint16, protocol uint16, weight uint32, fwd string) error
@@ -71,9 +72,10 @@ func (s *shim) Flush() error {
 
 func createSvcKey(vip string, protocol uint16, port uint16) *libipvs.Service {
 	svc := &libipvs.Service{
-		Address:  net.ParseIP(vip),
-		Protocol: libipvs.Protocol(protocol),
-		Port:     port,
+		Address:       net.ParseIP(vip),
+		Protocol:      libipvs.Protocol(protocol),
+		Port:          port,
+		AddressFamily: syscall.AF_INET,
 	}
 	return svc
 }
@@ -95,6 +97,13 @@ func (s *shim) AddService(vip string, port uint16, protocol uint16, sched string
 	svc.SchedName = sched
 	svc.Flags = libipvs.Flags{Flags: createFlagbits(flags), Mask: ^uint32(0)}
 	return s.handle.NewService(svc)
+}
+
+func (s *shim) UpdateService(vip string, port uint16, protocol uint16, sched string, flags []string) error {
+	svc := createSvcKey(vip, protocol, port)
+	svc.SchedName = sched
+	svc.Flags = libipvs.Flags{Flags: createFlagbits(flags), Mask: ^uint32(0)}
+	return s.handle.UpdateService(svc)
 }
 
 func (s *shim) DelService(vip string, port uint16, protocol uint16) error {

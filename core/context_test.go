@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/kobolog/gorb/disco"
+	"github.com/kobolog/gorb/ipvs-shim"
 	"github.com/kobolog/gorb/pulse"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -50,6 +51,11 @@ func (f *fakeIpvs) AddService(vip string, port uint16, protocol uint16, sched st
 	return args.Error(0)
 }
 
+func (f *fakeIpvs) UpdateService(vip string, port uint16, protocol uint16, sched string, flags []string) error {
+	args := f.Called(vip, port, protocol, sched, flags)
+	return args.Error(0)
+}
+
 func (f *fakeIpvs) DelService(vip string, port uint16, protocol uint16) error {
 	args := f.Called(vip, port, protocol)
 	return args.Error(0)
@@ -70,13 +76,13 @@ func (f *fakeIpvs) DelDestPort(vip string, vport uint16, rip string, rport uint1
 	return args.Error(0)
 }
 
-func newRoutineContext(backends map[string]*backend, ipvs IPVS) *Context {
+func newRoutineContext(backends map[string]*backend, ipvs ipvs_shim.IPVS) *Context {
 	c := newContext(ipvs, &fakeDisco{})
 	c.backends = backends
 	return c
 }
 
-func newContext(ipvs IPVS, disco disco.Driver) *Context {
+func newContext(ipvs ipvs_shim.IPVS, disco disco.Driver) *Context {
 	return &Context{
 		ipvs:     ipvs,
 		services: map[string]*service{},
@@ -135,6 +141,44 @@ func TestServiceIsCreatedWithGenericCustomFlags(t *testing.T) {
 	mockDisco.On("Expose", vsID, "127.0.0.1", uint16(80)).Return(nil)
 
 	err := c.createService(vsID, options)
+	assert.NoError(t, err)
+	mockIpvs.AssertExpectations(t)
+	mockDisco.AssertExpectations(t)
+}
+
+func TestServiceIsUpdated(t *testing.T) {
+	options := &ServiceOptions{Port: 80, Host: "localhost", Protocol: "tcp", Method: "sh", Flags: "flag-1"}
+	updatedOptions := &ServiceOptions{Port: 8080, Host: "127.0.0.1", Protocol: "udp", Method: "rr", Flags: "flag-2"}
+	mockIpvs := &fakeIpvs{}
+	mockDisco := &fakeDisco{}
+	c := newContext(mockIpvs, mockDisco)
+
+	mockIpvs.On("AddService", "127.0.0.1", uint16(80), uint16(syscall.IPPROTO_TCP), "sh",
+		[]string{"flag-1"}).Return(nil)
+	mockIpvs.On("UpdateService", "127.0.0.1", uint16(8080), uint16(syscall.IPPROTO_UDP), "rr",
+		[]string{"flag-2"}).Return(nil)
+	mockDisco.On("Expose", vsID, "127.0.0.1", uint16(80)).Return(nil)
+	mockDisco.On("Expose", vsID, "127.0.0.1", uint16(8080)).Return(nil)
+
+	err := c.createService(vsID, options)
+	assert.NoError(t, err)
+	err = c.updateService(vsID, updatedOptions)
+	assert.NoError(t, err)
+
+	mockIpvs.AssertExpectations(t)
+	mockDisco.AssertExpectations(t)
+}
+
+func TestServiceIsCreatedIfDoesntExist(t *testing.T) {
+	options := &ServiceOptions{Port: 80, Host: "localhost", Protocol: "tcp", Method: "sh"}
+	mockIpvs := &fakeIpvs{}
+	mockDisco := &fakeDisco{}
+	c := newContext(mockIpvs, mockDisco)
+
+	mockIpvs.On("AddService", "127.0.0.1", uint16(80), uint16(syscall.IPPROTO_TCP), "sh", []string(nil)).Return(nil)
+	mockDisco.On("Expose", vsID, "127.0.0.1", uint16(80)).Return(nil)
+
+	err := c.updateService(vsID, options)
 	assert.NoError(t, err)
 	mockIpvs.AssertExpectations(t)
 	mockDisco.AssertExpectations(t)

@@ -64,8 +64,8 @@ type ServiceOptions struct {
 	protocol uint16
 }
 
-// Validate fills missing fields and validates virtual service configuration.
-func (o *ServiceOptions) Validate(defaultHost net.IP) error {
+// Fill missing fields and validates virtual service configuration.
+func (o *ServiceOptions) Fill(defaultHost net.IP) error {
 	if o.Port == 0 {
 		return ErrMissingEndpoint
 	}
@@ -148,8 +148,8 @@ type BackendOptions struct {
 	host net.IP
 }
 
-// SetDefaults fills missing fields and validates backend configuration.
-func (o *BackendOptions) SetDefaults() error {
+// Fill missing fields and validates backend configuration.
+func (o *BackendOptions) Fill() error {
 	if len(o.Host) == 0 || o.Port == 0 {
 		return ErrMissingEndpoint
 	}

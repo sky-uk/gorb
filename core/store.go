@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"encoding/json"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
@@ -164,6 +165,15 @@ func (s *Store) Close() {
 func (s *Store) CreateService(vsID string, opts *ServiceOptions) error {
 	// put to store
 	if err := s.put(s.storeServicePath+"/"+vsID, opts, false); err != nil {
+		log.Errorf("error while put service to store: %s", err)
+		return err
+	}
+	return nil
+}
+
+func (s *Store) UpdateService(vsID string, opts *ServiceOptions) error {
+	// put to store
+	if err := s.put(s.storeServicePath+"/"+vsID, opts, true); err != nil {
 		log.Errorf("error while put service to store: %s", err)
 		return err
 	}

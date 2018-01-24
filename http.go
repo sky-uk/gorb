@@ -75,6 +75,23 @@ func (h serviceCreateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+type serviceUpdateHandler struct {
+	ctx *core.Context
+}
+
+func (h serviceUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var (
+		opts core.ServiceOptions
+		vars = mux.Vars(r)
+	)
+
+	if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {
+		writeError(w, err)
+	} else if err := h.ctx.UpdateService(vars["vsID"], &opts); err != nil {
+		writeError(w, err)
+	}
+}
+
 type backendCreateHandler struct {
 	ctx *core.Context
 }
