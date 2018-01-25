@@ -95,7 +95,9 @@ func createFlagbits(flags []string) uint32 {
 	var flagbits uint32
 	for _, flag := range flags {
 		if b, exists := schedulerFlags[flag]; exists {
-			flagbits |= b
+			// libipvs incorrectly repacks flags as big endian. This is a hack to ensure the flag bytes get passed
+			// correctly. It assumes the scheduler flags all fit into a single byte (which they do).
+			flagbits |= b << 24
 		} else {
 			log.Warnf("Unknown scheduler flag %q, ignoring", flag)
 		}
@@ -115,12 +117,14 @@ func protocolNumber(protocol string) (uint16, error) {
 }
 
 func (s *shim) AddService(vip string, port uint16, protocol string, sched string, flags []string) error {
+	log.Infof("flags: %v", flags)
 	svc, err := createSvcKey(vip, protocol, port)
 	if err != nil {
 		return err
 	}
 	svc.SchedName = sched
-	svc.Flags = libipvs.Flags{Flags: createFlagbits(flags), Mask: ^uint32(0)}
+	svc.Flags.Flags = createFlagbits(flags)
+	svc.Flags.Mask = ^uint32(0)
 	return s.handle.NewService(svc)
 }
 
@@ -130,7 +134,8 @@ func (s *shim) UpdateService(vip string, port uint16, protocol string, sched str
 		return err
 	}
 	svc.SchedName = sched
-	svc.Flags = libipvs.Flags{Flags: createFlagbits(flags), Mask: ^uint32(0)}
+	svc.Flags.Flags = createFlagbits(flags)
+	svc.Flags.Mask = ^uint32(0)
 	return s.handle.UpdateService(svc)
 }
 
