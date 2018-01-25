@@ -189,7 +189,7 @@ func (ctx *Context) createService(vsID string, opts *ServiceOptions) error {
 	if len(opts.Flags) > 0 {
 		flags = strings.Split(opts.Flags, "|")
 	}
-	if err := ctx.ipvs.AddService(opts.host.String(), opts.Port, opts.protocol, opts.Method, flags); err != nil {
+	if err := ctx.ipvs.AddService(opts.host.String(), opts.Port, opts.Protocol, opts.Method, flags); err != nil {
 		log.Errorf("error while creating virtual service: %s", err)
 		return ErrIpvsSyscallFailed
 	}
@@ -249,7 +249,7 @@ func (ctx *Context) updateService(vsID string, opts *ServiceOptions) error {
 	if len(opts.Flags) > 0 {
 		flags = strings.Split(opts.Flags, "|")
 	}
-	if err := ctx.ipvs.UpdateService(opts.host.String(), opts.Port, opts.protocol, opts.Method, flags); err != nil {
+	if err := ctx.ipvs.UpdateService(opts.host.String(), opts.Port, opts.Protocol, opts.Method, flags); err != nil {
 		log.Errorf("error while updating virtual service: %s", err)
 		return ErrIpvsSyscallFailed
 	}
@@ -313,7 +313,7 @@ func (ctx *Context) createBackend(vsID, rsID string, opts *BackendOptions) error
 		vs.options.Port,
 		opts.host.String(),
 		opts.Port,
-		vs.options.protocol,
+		vs.options.Protocol,
 		opts.Weight,
 		opts.Method,
 	); err != nil {
@@ -352,7 +352,7 @@ func (ctx *Context) updateBackend(vsID, rsID string, weight uint32) (uint32, err
 		rs.service.options.Port,
 		rs.options.host.String(),
 		rs.options.Port,
-		rs.service.options.protocol,
+		rs.service.options.Protocol,
 		weight,
 		rs.options.Method,
 	); err != nil {
@@ -413,7 +413,7 @@ func (ctx *Context) removeService(vsID string) (*ServiceOptions, error) {
 	if err := ctx.ipvs.DelService(
 		vs.options.host.String(),
 		vs.options.Port,
-		vs.options.protocol,
+		vs.options.Protocol,
 	); err != nil {
 		log.Errorf("error while removing virtual service [%s]", vsID)
 		return nil, ErrIpvsSyscallFailed
@@ -484,7 +484,7 @@ func (ctx *Context) removeBackend(vsID, rsID string) (*BackendOptions, error) {
 		rs.service.options.Port,
 		rs.options.host.String(),
 		rs.options.Port,
-		rs.service.options.protocol,
+		rs.service.options.Protocol,
 	); err != nil {
 		log.Errorf("error while removing backend [%s/%s]", vsID, rsID)
 		return nil, ErrIpvsSyscallFailed

@@ -3,8 +3,6 @@ package core
 import (
 	"testing"
 
-	"syscall"
-
 	"strings"
 
 	"github.com/kobolog/gorb/disco"
@@ -46,32 +44,32 @@ func (f *fakeIpvs) Flush() error {
 	return args.Error(0)
 }
 
-func (f *fakeIpvs) AddService(vip string, port uint16, protocol uint16, sched string, flags []string) error {
+func (f *fakeIpvs) AddService(vip string, port uint16, protocol string, sched string, flags []string) error {
 	args := f.Called(vip, port, protocol, sched, flags)
 	return args.Error(0)
 }
 
-func (f *fakeIpvs) UpdateService(vip string, port uint16, protocol uint16, sched string, flags []string) error {
+func (f *fakeIpvs) UpdateService(vip string, port uint16, protocol string, sched string, flags []string) error {
 	args := f.Called(vip, port, protocol, sched, flags)
 	return args.Error(0)
 }
 
-func (f *fakeIpvs) DelService(vip string, port uint16, protocol uint16) error {
+func (f *fakeIpvs) DelService(vip string, port uint16, protocol string) error {
 	args := f.Called(vip, port, protocol)
 	return args.Error(0)
 }
 
-func (f *fakeIpvs) AddDestPort(vip string, vport uint16, rip string, rport uint16, protocol uint16, weight uint32, fwd string) error {
+func (f *fakeIpvs) AddDestPort(vip string, vport uint16, rip string, rport uint16, protocol string, weight uint32, fwd string) error {
 	args := f.Called(vip, vport, rip, rport, protocol, weight, fwd)
 	return args.Error(0)
 }
 
-func (f *fakeIpvs) UpdateDestPort(vip string, vport uint16, rip string, rport uint16, protocol uint16, weight uint32, fwd string) error {
+func (f *fakeIpvs) UpdateDestPort(vip string, vport uint16, rip string, rport uint16, protocol string, weight uint32, fwd string) error {
 	args := f.Called(vip, vport, rip, rport, protocol, weight, fwd)
 	return args.Error(0)
 
 }
-func (f *fakeIpvs) DelDestPort(vip string, vport uint16, rip string, rport uint16, protocol uint16) error {
+func (f *fakeIpvs) DelDestPort(vip string, vport uint16, rip string, rport uint16, protocol string) error {
 	args := f.Called(vip, vport, rip, rport, protocol)
 	return args.Error(0)
 }
@@ -93,14 +91,6 @@ func newContext(ipvs ipvs_shim.IPVS, disco disco.Driver) *Context {
 	}
 }
 
-func protocolNumber(prot string) uint16 {
-	num, err := toProtocolNumber(prot)
-	if err != nil {
-		panic(err)
-	}
-	return num
-}
-
 var (
 	vsID           = "virtualServiceId"
 	rsID           = "realServerID"
@@ -113,7 +103,7 @@ func TestServiceIsCreated(t *testing.T) {
 	mockDisco := &fakeDisco{}
 	c := newContext(mockIpvs, mockDisco)
 
-	mockIpvs.On("AddService", "127.0.0.1", uint16(80), uint16(syscall.IPPROTO_TCP), "sh", []string(nil)).Return(nil)
+	mockIpvs.On("AddService", "127.0.0.1", uint16(80), "tcp", "sh", []string(nil)).Return(nil)
 	mockDisco.On("Expose", vsID, "127.0.0.1", uint16(80)).Return(nil)
 
 	err := c.createService(vsID, options)
@@ -128,7 +118,7 @@ func TestServiceIsCreatedWithShFlags(t *testing.T) {
 	mockDisco := &fakeDisco{}
 	c := newContext(mockIpvs, mockDisco)
 
-	mockIpvs.On("AddService", "127.0.0.1", uint16(80), uint16(syscall.IPPROTO_TCP), "sh",
+	mockIpvs.On("AddService", "127.0.0.1", uint16(80), "tcp", "sh",
 		strings.Split(options.Flags, "|")).Return(nil)
 	mockDisco.On("Expose", vsID, "127.0.0.1", uint16(80)).Return(nil)
 
@@ -144,7 +134,7 @@ func TestServiceIsCreatedWithGenericCustomFlags(t *testing.T) {
 	mockDisco := &fakeDisco{}
 	c := newContext(mockIpvs, mockDisco)
 
-	mockIpvs.On("AddService", "127.0.0.1", uint16(80), uint16(syscall.IPPROTO_TCP), "sh",
+	mockIpvs.On("AddService", "127.0.0.1", uint16(80), "tcp", "sh",
 		strings.Split(options.Flags, "|")).Return(nil)
 	mockDisco.On("Expose", vsID, "127.0.0.1", uint16(80)).Return(nil)
 
@@ -156,17 +146,14 @@ func TestServiceIsCreatedWithGenericCustomFlags(t *testing.T) {
 
 func TestServiceIsUpdated(t *testing.T) {
 	options := &ServiceOptions{Port: 80, Host: "localhost", Protocol: "tcp", Method: "sh", Flags: "flag-1"}
-	updatedOptions := &ServiceOptions{Port: 8080, Host: "127.0.0.1", Protocol: "udp", Method: "rr", Flags: "flag-2"}
+	updatedOptions := &ServiceOptions{Port: 80, Host: "127.0.0.1", Protocol: "tcp", Method: "rr", Flags: "flag-2"}
 	mockIpvs := &fakeIpvs{}
 	mockDisco := &fakeDisco{}
 	c := newContext(mockIpvs, mockDisco)
 
-	mockIpvs.On("AddService", "127.0.0.1", uint16(80), uint16(syscall.IPPROTO_TCP), "sh",
-		[]string{"flag-1"}).Return(nil)
-	mockIpvs.On("UpdateService", "127.0.0.1", uint16(8080), uint16(syscall.IPPROTO_UDP), "rr",
-		[]string{"flag-2"}).Return(nil)
+	mockIpvs.On("AddService", "127.0.0.1", uint16(80), "tcp", "sh", []string{"flag-1"}).Return(nil)
+	mockIpvs.On("UpdateService", "127.0.0.1", uint16(80), "tcp", "rr", []string{"flag-2"}).Return(nil)
 	mockDisco.On("Expose", vsID, "127.0.0.1", uint16(80)).Return(nil)
-	mockDisco.On("Expose", vsID, "127.0.0.1", uint16(8080)).Return(nil)
 
 	err := c.createService(vsID, options)
 	assert.NoError(t, err)
@@ -202,10 +189,10 @@ func TestServiceIsRecreatedIfHostPortProtocolChange(t *testing.T) {
 			mockDisco := &fakeDisco{}
 			c := newContext(mockIpvs, mockDisco)
 
-			mockIpvs.On("AddService", options.Host, options.Port, protocolNumber(options.Protocol), options.Method,
+			mockIpvs.On("AddService", options.Host, options.Port, options.Protocol, options.Method,
 				[]string{options.Flags}).Return(nil)
-			mockIpvs.On("DelService", options.Host, options.Port, protocolNumber(options.Protocol)).Return(nil)
-			mockIpvs.On("AddService", tt.updated.Host, tt.updated.Port, protocolNumber(tt.updated.Protocol),
+			mockIpvs.On("DelService", options.Host, options.Port, options.Protocol).Return(nil)
+			mockIpvs.On("AddService", tt.updated.Host, tt.updated.Port, tt.updated.Protocol,
 				tt.updated.Method, []string{tt.updated.Flags}).Return(nil)
 			mockDisco.On("Expose", vsID, options.Host, options.Port).Return(nil)
 			mockDisco.On("Remove", vsID).Return(nil)
@@ -228,7 +215,7 @@ func TestServiceIsCreatedIfDoesntExist(t *testing.T) {
 	mockDisco := &fakeDisco{}
 	c := newContext(mockIpvs, mockDisco)
 
-	mockIpvs.On("AddService", "127.0.0.1", uint16(80), uint16(syscall.IPPROTO_TCP), "sh", []string(nil)).Return(nil)
+	mockIpvs.On("AddService", "127.0.0.1", uint16(80), "tcp", "sh", []string(nil)).Return(nil)
 	mockDisco.On("Expose", vsID, "127.0.0.1", uint16(80)).Return(nil)
 
 	err := c.updateService(vsID, options)

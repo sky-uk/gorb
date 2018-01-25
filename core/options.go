@@ -24,7 +24,6 @@ import (
 	"errors"
 	"net"
 	"strings"
-	"syscall"
 
 	"github.com/kobolog/gorb/ipvs-shim"
 	"github.com/kobolog/gorb/pulse"
@@ -59,21 +58,6 @@ type ServiceOptions struct {
 	// Host string resolved to an IP, including DNS lookup.
 	host      net.IP
 	delIfAddr bool
-
-	// Protocol string converted to a protocol number.
-	protocol uint16
-}
-
-// move to ipvs_shim
-func toProtocolNumber(prot string) (uint16, error) {
-	switch prot {
-	case "tcp":
-		return syscall.IPPROTO_TCP, nil
-	case "udp":
-		return syscall.IPPROTO_UDP, nil
-	default:
-		return 0, ErrUnknownProtocol
-	}
 }
 
 // Fill missing fields and validates virtual service configuration.
@@ -99,11 +83,9 @@ func (o *ServiceOptions) Fill(defaultHost net.IP) error {
 	}
 
 	o.Protocol = strings.ToLower(o.Protocol)
-	prot, err := toProtocolNumber(o.Protocol)
-	if err != nil {
-		return err
+	if !ipvs_shim.ValidProtocol(o.Protocol) {
+		return ErrUnknownProtocol
 	}
-	o.protocol = prot
 
 	if o.Flags != "" {
 		for _, flag := range strings.Split(o.Flags, "|") {
