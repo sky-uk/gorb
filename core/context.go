@@ -216,7 +216,6 @@ func (ctx *Context) updateService(vsID string, opts *ServiceOptions) error {
 		return err
 	}
 
-	var old *service
 	old, exists := ctx.services[vsID]
 	if !exists {
 		log.Infof("attempted to update a non-existent service [%s], will create instead", vsID)
