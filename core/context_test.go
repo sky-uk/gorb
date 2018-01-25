@@ -93,6 +93,14 @@ func newContext(ipvs ipvs_shim.IPVS, disco disco.Driver) *Context {
 	}
 }
 
+func protocolNumber(prot string) uint16 {
+	num, err := toProtocolNumber(prot)
+	if err != nil {
+		panic(err)
+	}
+	return num
+}
+
 var (
 	vsID           = "virtualServiceId"
 	rsID           = "realServerID"
@@ -167,6 +175,51 @@ func TestServiceIsUpdated(t *testing.T) {
 
 	mockIpvs.AssertExpectations(t)
 	mockDisco.AssertExpectations(t)
+}
+
+func TestServiceIsRecreatedIfHostPortProtocolChange(t *testing.T) {
+	tests := []struct {
+		name    string
+		updated *ServiceOptions
+	}{
+		{
+			"host changed",
+			&ServiceOptions{Port: 80, Host: "8.8.8.8", Protocol: "tcp", Method: "sh", Flags: "flag-1"},
+		},
+		{
+			"port changed",
+			&ServiceOptions{Port: 99, Host: "127.0.0.1", Protocol: "tcp", Method: "sh", Flags: "flag-1"},
+		},
+		{
+			"protocol changed",
+			&ServiceOptions{Port: 80, Host: "127.0.0.1", Protocol: "udp", Method: "sh", Flags: "flag-1"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			options := &ServiceOptions{Port: 80, Host: "127.0.0.1", Protocol: "tcp", Method: "sh", Flags: "flag-1"}
+			mockIpvs := &fakeIpvs{}
+			mockDisco := &fakeDisco{}
+			c := newContext(mockIpvs, mockDisco)
+
+			mockIpvs.On("AddService", options.Host, options.Port, protocolNumber(options.Protocol), options.Method,
+				[]string{options.Flags}).Return(nil)
+			mockIpvs.On("DelService", options.Host, options.Port, protocolNumber(options.Protocol)).Return(nil)
+			mockIpvs.On("AddService", tt.updated.Host, tt.updated.Port, protocolNumber(tt.updated.Protocol),
+				tt.updated.Method, []string{tt.updated.Flags}).Return(nil)
+			mockDisco.On("Expose", vsID, options.Host, options.Port).Return(nil)
+			mockDisco.On("Remove", vsID).Return(nil)
+			mockDisco.On("Expose", vsID, tt.updated.Host, tt.updated.Port).Return(nil)
+
+			err := c.createService(vsID, options)
+			assert.NoError(t, err)
+			err = c.updateService(vsID, tt.updated)
+			assert.NoError(t, err)
+
+			mockIpvs.AssertExpectations(t)
+			mockDisco.AssertExpectations(t)
+		})
+	}
 }
 
 func TestServiceIsCreatedIfDoesntExist(t *testing.T) {

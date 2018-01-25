@@ -64,6 +64,18 @@ type ServiceOptions struct {
 	protocol uint16
 }
 
+// move to ipvs_shim
+func toProtocolNumber(prot string) (uint16, error) {
+	switch prot {
+	case "tcp":
+		return syscall.IPPROTO_TCP, nil
+	case "udp":
+		return syscall.IPPROTO_UDP, nil
+	default:
+		return 0, ErrUnknownProtocol
+	}
+}
+
 // Fill missing fields and validates virtual service configuration.
 func (o *ServiceOptions) Fill(defaultHost net.IP) error {
 	if o.Port == 0 {
@@ -87,15 +99,11 @@ func (o *ServiceOptions) Fill(defaultHost net.IP) error {
 	}
 
 	o.Protocol = strings.ToLower(o.Protocol)
-
-	switch o.Protocol {
-	case "tcp":
-		o.protocol = syscall.IPPROTO_TCP
-	case "udp":
-		o.protocol = syscall.IPPROTO_UDP
-	default:
-		return ErrUnknownProtocol
+	prot, err := toProtocolNumber(o.Protocol)
+	if err != nil {
+		return err
 	}
+	o.protocol = prot
 
 	if o.Flags != "" {
 		for _, flag := range strings.Split(o.Flags, "|") {
