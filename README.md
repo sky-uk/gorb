@@ -1,30 +1,9 @@
-# SKY FORK
+[![Build Status](https://travis-ci.org/sky-uk/gorb.svg?branch=master)]
 
-This is a sky fork of Gorb, as we work on upstreaming improvements.
+# Sky gorb
 
-## Creating and building
-
-Clone sky-uk gorb, and upstream:
-
-    mkdir -p $GOPATH/src/github.com/kobolog
-    cd $GOPATH/src/github.com/kobolog
-    git clone git@github.com:sky-uk/gorb.git
-    cd gorb
-    git remote add upstream https://github.com/kobolog/gorb.git
-    git fetch --all
-
-To recreate master, to get latest upstream changes:
-
-    git log  # make a note of custom commits applied on upstream
-    git reset --hard upstream/master
-    git cherry-pick sky-build # sky-build is the base commit, with travis and this README prequel
-    git cherry-pick <commits> # apply custom commits, excluding any already merged to upstream
-    
-Otherwise, normal dev can be done with branches on this repo. When done, open two PRs:
-1. For this local fork
-2. For the upstream project
- 
-Squash-rebase to this master fork, so the commits can be cherry picked easily later.
+This is a fork of https://github.com/kobolog/gorb, with some improvements. Compared to upstream, it supports:
+* PATCH of virtual services
 
 ## GORB [![Build Status](https://travis-ci.org/kobolog/gorb.svg?branch=master)](https://travis-ci.org/kobolog/gorb) [![codecov.io](https://codecov.io/github/kobolog/gorb/coverage.svg?branch=master)](https://codecov.io/github/kobolog/gorb?branch=master)
 **Go Routing and Balancing**
