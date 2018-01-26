@@ -27,7 +27,7 @@ import (
 )
 
 func (ctx *Context) run() {
-	stash := make(map[pulse.ID]int32)
+	stash := make(map[pulse.ID]uint32)
 
 	for {
 		select {
@@ -40,7 +40,7 @@ func (ctx *Context) run() {
 	}
 }
 
-func (ctx *Context) processPulseUpdate(stash map[pulse.ID]int32, u pulse.Update) {
+func (ctx *Context) processPulseUpdate(stash map[pulse.ID]uint32, u pulse.Update) {
 	vsID, rsID := u.Source.VsID, u.Source.RsID
 
 	ctx.mutex.Lock()
@@ -74,7 +74,7 @@ func (ctx *Context) processPulseUpdate(stash map[pulse.ID]int32, u pulse.Update)
 		}
 
 		// Calculate a relative weight considering backend's health.
-		weight = int32(float64(weight) * u.Metrics.Health)
+		weight = uint32(float64(weight) * u.Metrics.Health)
 
 		if _, err := ctx.UpdateBackend(vsID, rsID, weight); err != nil {
 			log.Errorf("error while unstashing a backend: %s", err)

@@ -3,7 +3,6 @@ import:
 - package: github.com/Sirupsen/logrus
 - package: github.com/fsouza/go-dockerclient
 - package: github.com/gorilla/mux
-- package: github.com/tehnerd/gnl2go
 - package: github.com/vishvananda/netlink
 - package: github.com/docker/libkv
 - package: github.com/pkg/errors
@@ -14,3 +13,6 @@ import:
   - prometheus
 - package: github.com/stretchr/testify
   version: ~1.1.4
+- package: github.com/mqliang/libipvs
+- package: github.com/hkwi/nlgo
+- package: github.com/hashicorp/go-cleanhttp
