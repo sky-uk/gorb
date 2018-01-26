@@ -24,7 +24,6 @@ import (
 	"errors"
 	"net"
 	"strings"
-	"syscall"
 
 	"github.com/kobolog/gorb/ipvs-shim"
 	"github.com/kobolog/gorb/pulse"
@@ -59,13 +58,10 @@ type ServiceOptions struct {
 	// Host string resolved to an IP, including DNS lookup.
 	host      net.IP
 	delIfAddr bool
-
-	// Protocol string converted to a protocol number.
-	protocol uint16
 }
 
-// Validate fills missing fields and validates virtual service configuration.
-func (o *ServiceOptions) Validate(defaultHost net.IP) error {
+// Fill missing fields and validates virtual service configuration.
+func (o *ServiceOptions) Fill(defaultHost net.IP) error {
 	if o.Port == 0 {
 		return ErrMissingEndpoint
 	}
@@ -87,13 +83,7 @@ func (o *ServiceOptions) Validate(defaultHost net.IP) error {
 	}
 
 	o.Protocol = strings.ToLower(o.Protocol)
-
-	switch o.Protocol {
-	case "tcp":
-		o.protocol = syscall.IPPROTO_TCP
-	case "udp":
-		o.protocol = syscall.IPPROTO_UDP
-	default:
+	if !ipvs_shim.ValidProtocol(o.Protocol) {
 		return ErrUnknownProtocol
 	}
 
@@ -148,8 +138,8 @@ type BackendOptions struct {
 	host net.IP
 }
 
-// SetDefaults fills missing fields and validates backend configuration.
-func (o *BackendOptions) SetDefaults() error {
+// Fill missing fields and validates backend configuration.
+func (o *BackendOptions) Fill() error {
 	if len(o.Host) == 0 || o.Port == 0 {
 		return ErrMissingEndpoint
 	}

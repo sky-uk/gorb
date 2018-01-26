@@ -58,7 +58,7 @@ type backend struct {
 
 // Context abstacts away the underlying IPVS bindings implementation.
 type Context struct {
-	ipvs         IPVS
+	ipvs         ipvs_shim.IPVS
 	endpoint     net.IP
 	services     map[string]*service
 	backends     map[string]*backend
@@ -68,16 +68,6 @@ type Context struct {
 	stopCh       chan struct{}
 	vipInterface netlink.Link
 	store        *Store
-}
-
-type IPVS interface {
-	Init() error
-	Flush() error
-	AddService(vip string, port uint16, protocol uint16, sched string, flags []string) error
-	DelService(vip string, port uint16, protocol uint16) error
-	AddDestPort(vip string, vport uint16, rip string, rport uint16, protocol uint16, weight uint32, fwd string) error
-	UpdateDestPort(vip string, vport uint16, rip string, rport uint16, protocol uint16, weight uint32, fwd string) error
-	DelDestPort(vip string, vport uint16, rip string, rport uint16, protocol uint16) error
 }
 
 // NewContext creates a new Context and initializes IPVS.
@@ -162,7 +152,7 @@ func (ctx *Context) Close() {
 
 // CreateService registers a new virtual service with IPVS.
 func (ctx *Context) createService(vsID string, opts *ServiceOptions) error {
-	if err := opts.Validate(ctx.endpoint); err != nil {
+	if err := opts.Fill(ctx.endpoint); err != nil {
 		return err
 	}
 
@@ -199,7 +189,7 @@ func (ctx *Context) createService(vsID string, opts *ServiceOptions) error {
 	if len(opts.Flags) > 0 {
 		flags = strings.Split(opts.Flags, "|")
 	}
-	if err := ctx.ipvs.AddService(opts.host.String(), opts.Port, opts.protocol, opts.Method, flags); err != nil {
+	if err := ctx.ipvs.AddService(opts.host.String(), opts.Port, opts.Protocol, opts.Method, flags); err != nil {
 		log.Errorf("error while creating virtual service: %s", err)
 		return ErrIpvsSyscallFailed
 	}
@@ -220,9 +210,68 @@ func (ctx *Context) CreateService(vsID string, opts *ServiceOptions) error {
 	return ctx.createService(vsID, opts)
 }
 
+// updateService updates a virtual service in IPVS.
+func (ctx *Context) updateService(vsID string, opts *ServiceOptions) error {
+	if err := opts.Fill(ctx.endpoint); err != nil {
+		return err
+	}
+
+	old, exists := ctx.services[vsID]
+	if !exists {
+		log.Infof("attempted to update a non-existent service [%s], will create instead", vsID)
+		return ctx.createService(vsID, opts)
+	}
+
+	// Check if not possible to update.
+	if old.options.host.String() != opts.host.String() ||
+		old.options.Port != opts.Port ||
+		old.options.Protocol != opts.Protocol {
+		log.Info("unable to update virtual service due to host/port/protocol changing, must recreate")
+		if _, err := ctx.removeService(vsID); err != nil {
+			return err
+		}
+		return ctx.createService(vsID, opts)
+	}
+
+	log.Infof("updating virtual service [%s] on %s:%d", vsID, opts.host,
+		opts.Port)
+
+	// update service in external store
+	if ctx.store != nil {
+		if err := ctx.store.UpdateService(vsID, opts); err != nil {
+			log.Errorf("error while updating service : %s", err)
+			return err
+		}
+	}
+
+	var flags []string
+	if len(opts.Flags) > 0 {
+		flags = strings.Split(opts.Flags, "|")
+	}
+	if err := ctx.ipvs.UpdateService(opts.host.String(), opts.Port, opts.Protocol, opts.Method, flags); err != nil {
+		log.Errorf("error while updating virtual service: %s", err)
+		return ErrIpvsSyscallFailed
+	}
+
+	ctx.services[vsID] = &service{options: opts}
+
+	if err := ctx.disco.Expose(vsID, opts.host.String(), opts.Port); err != nil {
+		log.Errorf("error while exposing service to Disco: %s", err)
+	}
+
+	return nil
+}
+
+// CreateService registers a new virtual service with IPVS.
+func (ctx *Context) UpdateService(vsID string, opts *ServiceOptions) error {
+	ctx.mutex.Lock()
+	defer ctx.mutex.Unlock()
+	return ctx.updateService(vsID, opts)
+}
+
 // CreateBackend registers a new backend with a virtual service.
 func (ctx *Context) createBackend(vsID, rsID string, opts *BackendOptions) error {
-	if err := opts.SetDefaults(); err != nil {
+	if err := opts.Fill(); err != nil {
 		return err
 	}
 	p, err := pulse.New(opts.host.String(), opts.Port, opts.Pulse)
@@ -263,7 +312,7 @@ func (ctx *Context) createBackend(vsID, rsID string, opts *BackendOptions) error
 		vs.options.Port,
 		opts.host.String(),
 		opts.Port,
-		vs.options.protocol,
+		vs.options.Protocol,
 		opts.Weight,
 		opts.Method,
 	); err != nil {
@@ -302,7 +351,7 @@ func (ctx *Context) updateBackend(vsID, rsID string, weight uint32) (uint32, err
 		rs.service.options.Port,
 		rs.options.host.String(),
 		rs.options.Port,
-		rs.service.options.protocol,
+		rs.service.options.Protocol,
 		weight,
 		rs.options.Method,
 	); err != nil {
@@ -363,7 +412,7 @@ func (ctx *Context) removeService(vsID string) (*ServiceOptions, error) {
 	if err := ctx.ipvs.DelService(
 		vs.options.host.String(),
 		vs.options.Port,
-		vs.options.protocol,
+		vs.options.Protocol,
 	); err != nil {
 		log.Errorf("error while removing virtual service [%s]", vsID)
 		return nil, ErrIpvsSyscallFailed
@@ -434,7 +483,7 @@ func (ctx *Context) removeBackend(vsID, rsID string) (*BackendOptions, error) {
 		rs.service.options.Port,
 		rs.options.host.String(),
 		rs.options.Port,
-		rs.service.options.protocol,
+		rs.service.options.Protocol,
 	); err != nil {
 		log.Errorf("error while removing backend [%s/%s]", vsID, rsID)
 		return nil, ErrIpvsSyscallFailed
