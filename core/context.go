@@ -226,11 +226,7 @@ func (ctx *Context) updateService(vsID string, opts *ServiceOptions) error {
 	if old.options.host.String() != opts.host.String() ||
 		old.options.Port != opts.Port ||
 		old.options.Protocol != opts.Protocol {
-		log.Info("unable to update virtual service due to host/port/protocol changing, must recreate")
-		if _, err := ctx.removeService(vsID); err != nil {
-			return err
-		}
-		return ctx.createService(vsID, opts)
+		return fmt.Errorf("unable to update virtual service [%s] due to host/port/protocol changing", vsID)
 	}
 
 	log.Infof("updating virtual service [%s] on %s:%d", vsID, opts.host,
