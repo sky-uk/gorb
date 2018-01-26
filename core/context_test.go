@@ -164,7 +164,7 @@ func TestServiceIsUpdated(t *testing.T) {
 	mockDisco.AssertExpectations(t)
 }
 
-func TestServiceIsRecreatedIfHostPortProtocolChange(t *testing.T) {
+func TestCannotUpdateServiceIfHostPortProtocolChange(t *testing.T) {
 	tests := []struct {
 		name    string
 		updated *ServiceOptions
@@ -191,17 +191,12 @@ func TestServiceIsRecreatedIfHostPortProtocolChange(t *testing.T) {
 
 			mockIpvs.On("AddService", options.Host, options.Port, options.Protocol, options.Method,
 				[]string{options.Flags}).Return(nil)
-			mockIpvs.On("DelService", options.Host, options.Port, options.Protocol).Return(nil)
-			mockIpvs.On("AddService", tt.updated.Host, tt.updated.Port, tt.updated.Protocol,
-				tt.updated.Method, []string{tt.updated.Flags}).Return(nil)
 			mockDisco.On("Expose", vsID, options.Host, options.Port).Return(nil)
-			mockDisco.On("Remove", vsID).Return(nil)
-			mockDisco.On("Expose", vsID, tt.updated.Host, tt.updated.Port).Return(nil)
 
 			err := c.createService(vsID, options)
 			assert.NoError(t, err)
 			err = c.updateService(vsID, tt.updated)
-			assert.NoError(t, err)
+			assert.Error(t, err)
 
 			mockIpvs.AssertExpectations(t)
 			mockDisco.AssertExpectations(t)
