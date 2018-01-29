@@ -79,7 +79,7 @@ imports:
   subpackages:
   - pbutil
 - name: github.com/mqliang/libipvs
-  version: 14f7b2e25059173ab78fd0b07b1cea374572375c
+  version: 38f5f7e6361787f0007b825811aa732d83888197
 - name: github.com/opencontainers/runc
   version: 629e35666d31f743090452416c8df207d9fdbd34
   subpackages:
