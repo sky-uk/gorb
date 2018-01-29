@@ -95,9 +95,7 @@ func createFlagbits(flags []string) uint32 {
 	var flagbits uint32
 	for _, flag := range flags {
 		if b, exists := schedulerFlags[flag]; exists {
-			// libipvs incorrectly repacks flags as big endian. This is a hack to ensure the flag bytes get passed
-			// correctly. Remove the shift once https://github.com/mqliang/libipvs/pull/8 is merged.
-			flagbits |= b << 24
+			flagbits |= b
 		} else {
 			log.Warnf("Unknown scheduler flag %q, ignoring", flag)
 		}

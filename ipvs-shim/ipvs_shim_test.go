@@ -15,12 +15,12 @@ func TestCreateFlagbits(t *testing.T) {
 		{
 			"multiple flags",
 			[]string{"flag-1", "flag-2"},
-			(libipvs.IP_VS_SVC_F_SCHED1 | libipvs.IP_VS_SVC_F_SCHED2) << 24,
+			libipvs.IP_VS_SVC_F_SCHED1 | libipvs.IP_VS_SVC_F_SCHED2,
 		},
 		{
 			"invalid flags",
 			[]string{"flag-1", "invalid-ignored", "flag-2"},
-			(libipvs.IP_VS_SVC_F_SCHED1 | libipvs.IP_VS_SVC_F_SCHED2) << 24,
+			libipvs.IP_VS_SVC_F_SCHED1 | libipvs.IP_VS_SVC_F_SCHED2,
 		},
 	}
 	for _, tt := range tests {
