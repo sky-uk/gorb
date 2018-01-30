@@ -113,8 +113,8 @@ func NewStore(storeURLs []string, storeServicePath, storeBackendPath string) (*S
 //	s.ctx.Synchronize(services, backends)
 //}
 
-func (s *Store) ListServices() (map[string]*ServiceOptions, error) {
-	services := make(map[string]*ServiceOptions)
+func (s *Store) ListServices() ([]*ServiceOptions, error) {
+	var services []*ServiceOptions
 	// build external service map (temporary all services)
 	kvlist, err := s.kvstore.List(s.storeServicePath)
 	if err != nil {
@@ -124,18 +124,17 @@ func (s *Store) ListServices() (map[string]*ServiceOptions, error) {
 		return nil, err
 	}
 	for _, kvpair := range kvlist {
-		id := s.getID(kvpair.Key)
 		var options ServiceOptions
 		if err := json.Unmarshal(kvpair.Value, &options); err != nil {
 			return nil, err
 		}
-		services[id] = &options
+		services = append(services, &options)
 	}
 	return services, nil
 }
 
-func (s *Store) ListBackends() (map[string]*BackendOptions, error) {
-	backends := make(map[string]*BackendOptions)
+func (s *Store) ListBackends() ([]*BackendOptions, error) {
+	var backends []*BackendOptions
 	// build external backend map
 	kvlist, err := s.kvstore.List(s.storeBackendPath)
 	if err != nil {
@@ -149,7 +148,7 @@ func (s *Store) ListBackends() (map[string]*BackendOptions, error) {
 		if err := json.Unmarshal(kvpair.Value, &options); err != nil {
 			return nil, err
 		}
-		backends[s.getID(kvpair.Key)] = &options
+		backends = append(backends, &options)
 	}
 	return backends, nil
 }

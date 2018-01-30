@@ -312,7 +312,7 @@ func (ctx *Context) createBackend(vsID, rsID string, opts *BackendOptions) error
 		}
 	}
 
-	if err := ctx.ipvs.AddDestPort(
+	if err := ctx.ipvs.AddBackend(
 		vs.options.host.String(),
 		vs.options.Port,
 		opts.host.String(),
@@ -351,7 +351,7 @@ func (ctx *Context) updateBackend(vsID, rsID string, weight uint32) (uint32, err
 	log.Infof("updating backend [%s/%s] with weight: %d", vsID, rsID,
 		weight)
 
-	if err := ctx.ipvs.UpdateDestPort(
+	if err := ctx.ipvs.UpdateBackend(
 		rs.service.options.host.String(),
 		rs.service.options.Port,
 		rs.options.host.String(),
@@ -483,7 +483,7 @@ func (ctx *Context) removeBackend(vsID, rsID string) (*BackendOptions, error) {
 	// Stop the pulse goroutine.
 	rs.monitor.Stop()
 
-	if err := ctx.ipvs.DelDestPort(
+	if err := ctx.ipvs.DelBackend(
 		rs.service.options.host.String(),
 		rs.service.options.Port,
 		rs.options.host.String(),
