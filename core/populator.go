@@ -60,8 +60,18 @@ func (p *populator) Sync() {
 }
 
 func (p *populator) ListServices() ([]*ServiceOptions, error) {
-	p.ipvs.ListServices()
-	return nil, nil
+	ipvsSvcs, err := p.ipvs.ListServices()
+	if err != nil {
+		return nil, err
+	}
+	var svcs []*ServiceOptions
+	for _, isvc := range ipvsSvcs {
+		svc := &ServiceOptions{
+			Host: isvc.VIP,
+		}
+		svcs = append(svcs, svc)
+	}
+	return svcs, nil
 }
 
 func (p *populator) ListBackends() ([]*BackendOptions, error) {

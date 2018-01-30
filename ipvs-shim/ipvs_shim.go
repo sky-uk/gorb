@@ -34,6 +34,7 @@ type IPVS interface {
 	AddService(svc *Service) error
 	UpdateService(svc *Service) error
 	DelService(key *ServiceKey) error
+	ListServices() ([]*Service, error)
 	AddBackend(key *ServiceKey, backend *Backend) error
 	UpdateBackend(key *ServiceKey, backend *Backend) error
 	DelBackend(key *ServiceKey, backend *Backend) error
