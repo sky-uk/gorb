@@ -85,30 +85,36 @@ func main() {
 		listenPort = uint16(listenAddr.Port)
 	}
 
+	if storeURLs == nil || len(*storeURLs) == 0 {
+		log.Fatalf("store URLs are required")
+	}
+
+	// sync with external store
+	urls := strings.Split(*storeURLs, ",")
+	store, err := core.NewStore(urls, *storeServicePath, *storeBackendPath)
+	if err != nil {
+		log.Fatalf("error while initializing external store sync: %s", err)
+	}
+	// bug: this never gets called
+	defer store.Close()
+
 	ctx, err := core.NewContext(core.ContextOptions{
 		Disco:        *consul,
 		Endpoints:    hostIPs,
 		Flush:        *flush,
 		ListenPort:   listenPort,
 		VipInterface: *vipInterface,
-		SyncTime:     *syncTime})
+		SyncTime:     *syncTime,
+		Store:        store,
+	})
 
 	if err != nil {
 		log.Fatalf("error while initializing server context: %s", err)
 	}
 
 	// While it's not strictly required, close IPVS socket explicitly.
+	// bug: this never gets called
 	defer ctx.Close()
-
-	// sync with external store
-	if storeURLs != nil && len(*storeURLs) > 0 {
-		urls := strings.Split(*storeURLs, ",")
-		store, err := core.NewStore(urls, *storeServicePath, *storeBackendPath, 0, ctx)
-		if err != nil {
-			log.Fatalf("error while initializing external store sync: %s", err)
-		}
-		defer store.Close()
-	}
 
 	core.RegisterPrometheusExporter(ctx)
 	r := mux.NewRouter()

@@ -25,9 +25,10 @@ import (
 	"net"
 	"strings"
 
+	"time"
+
 	"github.com/kobolog/gorb/ipvs-shim"
 	"github.com/kobolog/gorb/pulse"
-	"time"
 )
 
 // Possible validation errors.
@@ -46,6 +47,7 @@ type ContextOptions struct {
 	ListenPort   uint16
 	VipInterface string
 	SyncTime     time.Duration
+	Store        *Store
 }
 
 // ServiceOptions describe a virtual service.

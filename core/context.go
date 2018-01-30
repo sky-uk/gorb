@@ -133,7 +133,8 @@ func NewContext(options ContextOptions) (*Context, error) {
 		log.Infof("VIPs will be added to interface '%s'", ctx.vipInterface.Attrs().Name)
 	}
 
-	ctx.populator = NewPopulator(options.SyncTime)
+	ctx.store = options.Store
+	ctx.populator = NewPopulator(options.SyncTime, options.Store)
 
 	return ctx, nil
 }
@@ -152,6 +153,7 @@ func (ctx *Context) Close() {
 	// This will also shutdown the pulse notification sink goroutine.
 	close(ctx.stopCh)
 
+	// bug: remove this - gorb shutdown should not break all active connections.
 	for vsID := range ctx.services {
 		ctx.RemoveService(vsID)
 	}

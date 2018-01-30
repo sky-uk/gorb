@@ -22,18 +22,22 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/kobolog/gorb/ipvs-shim"
 )
 
 type populator struct {
 	period time.Duration
 	syncCh chan struct{}
+	store  *Store
+	ipvs   ipvs_shim.IPVS
 }
 
 // New returns a populator that populates the ipvs state periodically and on demand.
-func NewPopulator(period time.Duration) *populator {
+func NewPopulator(period time.Duration, store *Store) *populator {
 	return &populator{
 		period: period,
 		syncCh: make(chan struct{}),
+		store:  store,
 	}
 }
 
@@ -56,5 +60,70 @@ func (p *populator) Sync() {
 }
 
 func (p *populator) populate() {
-	log.Info("populate stuff!")
+	desiredServices, err := p.store.ListServices()
+	if err != nil {
+		log.Errorf("unable to populate: %v", err)
+		return
+	}
+	desiredBackends, err := p.store.ListBackends()
+	if err != nil {
+		log.Errorf("unable to populate: %v", err)
+		return
+	}
+
+	for k, v := range desiredServices {
+		log.Debugf("SERVICE[%s]: %s", k, v)
+	}
+	for k, v := range desiredBackends {
+		log.Debugf("  BACKEND[%s]: %s", k, v)
+	}
+
+	actualServices, err := p.ListServices()
+	if err != nil {
+		log.Errorf("unable to populate: %v", err)
+		return
+	}
+	actualBackends, err := p.ListBackends()
+	if err != nil {
+		log.Errorf("unable to populate: %v", err)
+		return
+	}
+
+	// synchronize services with store
+	for id, _ := range ctx.services {
+		if _, ok := storeServices[id]; !ok {
+			ctx.removeService(id)
+		}
+	}
+	for id, storeServiceOptions := range storeServices {
+		if service, ok := ctx.services[id]; ok {
+			if service.options.CompareStoreOptions(storeServiceOptions) {
+				continue
+			}
+			ctx.removeService(id)
+		}
+		ctx.createService(id, storeServiceOptions)
+	}
+
+	// synchronize backends with store
+	for id, backend := range ctx.backends {
+		if _, ok := storeBackends[id]; !ok {
+			vsID := "(unknown)"
+			if len(backend.options.VsID) > 0 {
+				vsID = backend.options.VsID
+			}
+			ctx.removeBackend(vsID, id)
+		}
+	}
+	for id, storeBackendOptions := range storeBackends {
+		if backend, ok := ctx.backends[id]; ok {
+			if backend.options.CompareStoreOptions(storeBackendOptions) {
+				continue
+			}
+			ctx.removeBackend(storeBackendOptions.VsID, id)
+		}
+		if err := ctx.createBackend(storeBackendOptions.VsID, id, storeBackendOptions); err != nil {
+			log.Warnf("create backend error: %s", err.Error())
+		}
+	}
 }

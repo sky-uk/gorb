@@ -19,14 +19,13 @@ import (
 )
 
 type Store struct {
-	ctx              *Context
 	kvstore          store.Store
 	storeServicePath string
 	storeBackendPath string
 	stopCh           chan struct{}
 }
 
-func NewStore(storeURLs []string, storeServicePath, storeBackendPath string, syncTime int64, context *Context) (*Store, error) {
+func NewStore(storeURLs []string, storeServicePath, storeBackendPath string) (*Store, error) {
 	var scheme string
 	var storePath string
 	var hosts []string
@@ -74,14 +73,11 @@ func NewStore(storeURLs []string, storeServicePath, storeBackendPath string, syn
 	}
 
 	store := &Store{
-		ctx:              context,
 		kvstore:          kvstore,
 		storeServicePath: path.Join(storePath, storeServicePath),
 		storeBackendPath: path.Join(storePath, storeBackendPath),
 		stopCh:           make(chan struct{}),
 	}
-
-	context.SetStore(store)
 
 	//store.Sync()
 	//storeTimer := time.NewTicker(time.Duration(syncTime) * time.Second)
@@ -117,7 +113,7 @@ func NewStore(storeURLs []string, storeServicePath, storeBackendPath string, syn
 //	s.ctx.Synchronize(services, backends)
 //}
 
-func (s *Store) getExternalServices() (map[string]*ServiceOptions, error) {
+func (s *Store) ListServices() (map[string]*ServiceOptions, error) {
 	services := make(map[string]*ServiceOptions)
 	// build external service map (temporary all services)
 	kvlist, err := s.kvstore.List(s.storeServicePath)
@@ -138,7 +134,7 @@ func (s *Store) getExternalServices() (map[string]*ServiceOptions, error) {
 	return services, nil
 }
 
-func (s *Store) getExternalBackends() (map[string]*BackendOptions, error) {
+func (s *Store) ListBackends() (map[string]*BackendOptions, error) {
 	backends := make(map[string]*BackendOptions)
 	// build external backend map
 	kvlist, err := s.kvstore.List(s.storeBackendPath)
