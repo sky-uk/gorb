@@ -68,6 +68,7 @@ type Context struct {
 	stopCh       chan struct{}
 	vipInterface netlink.Link
 	store        *Store
+	populator    *populator
 }
 
 // NewContext creates a new Context and initializes IPVS.
@@ -132,10 +133,16 @@ func NewContext(options ContextOptions) (*Context, error) {
 		log.Infof("VIPs will be added to interface '%s'", ctx.vipInterface.Attrs().Name)
 	}
 
-	// Fire off a pulse notifications sink goroutine.
-	go ctx.run()
+	ctx.populator = NewPopulator(options.SyncTime)
 
 	return ctx, nil
+}
+
+// Start the context.
+func (ctx *Context) Start() {
+	// Fire off a pulse notifications sink goroutine.
+	go ctx.pulseHandler()
+	ctx.populator.Start()
 }
 
 // Close shuts down IPVS and closes the Context.

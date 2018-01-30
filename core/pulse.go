@@ -26,7 +26,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-func (ctx *Context) run() {
+func (ctx *Context) pulseHandler() {
 	stash := make(map[pulse.ID]uint32)
 
 	for {

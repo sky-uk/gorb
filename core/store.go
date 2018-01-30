@@ -83,39 +83,39 @@ func NewStore(storeURLs []string, storeServicePath, storeBackendPath string, syn
 
 	context.SetStore(store)
 
-	store.Sync()
-	storeTimer := time.NewTicker(time.Duration(syncTime) * time.Second)
-	go func() {
-		for {
-			select {
-			case <-storeTimer.C:
-				store.Sync()
-			case <-store.stopCh:
-				storeTimer.Stop()
-				return
-			}
-		}
-	}()
-
+	//store.Sync()
+	//storeTimer := time.NewTicker(time.Duration(syncTime) * time.Second)
+	//go func() {
+	//	for {
+	//		select {
+	//		case <-storeTimer.C:
+	//			store.Sync()
+	//		case <-store.stopCh:
+	//			storeTimer.Stop()
+	//			return
+	//		}
+	//	}
+	//}()
+	//
 	return store, nil
 }
 
-func (s *Store) Sync() {
-	// build external services map
-	services, err := s.getExternalServices()
-	if err != nil {
-		log.Errorf("error while get services: %s", err)
-		return
-	}
-	// build external backends map
-	backends, err := s.getExternalBackends()
-	if err != nil {
-		log.Errorf("error while get backends: %s", err)
-		return
-	}
-	// synchronize context
-	s.ctx.Synchronize(services, backends)
-}
+//func (s *Store) Sync() {
+//	// build external services map
+//	services, err := s.getExternalServices()
+//	if err != nil {
+//		log.Errorf("error while get services: %s", err)
+//		return
+//	}
+//	// build external backends map
+//	backends, err := s.getExternalBackends()
+//	if err != nil {
+//		log.Errorf("error while get backends: %s", err)
+//		return
+//	}
+//	// synchronize context
+//	s.ctx.Synchronize(services, backends)
+//}
 
 func (s *Store) getExternalServices() (map[string]*ServiceOptions, error) {
 	services := make(map[string]*ServiceOptions)

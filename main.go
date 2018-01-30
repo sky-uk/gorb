@@ -34,6 +34,8 @@ import (
 
 	"strings"
 
+	"time"
+
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -47,9 +49,9 @@ var (
 	listen       = flag.String("l", ":4672", "endpoint to listen for HTTP requests")
 	consul       = flag.String("c", "", "URL for Consul HTTP API")
 	vipInterface = flag.String("vipi", "", "interface to add VIPs")
+	syncTime     = flag.Duration("sync-time", 60*time.Second, "period to sync IPVS changes")
 	storeURLs    = flag.String("store", "", "comma delimited list of store urls for sync data. All urls must have"+
 		" identical schemes and paths.")
-	storeTimeout     = flag.Int64("store-sync-time", 60, "sync-time for store")
 	storeServicePath = flag.String("store-service-path", "services", "store service path")
 	storeBackendPath = flag.String("store-backend-path", "backends", "store backend path")
 )
@@ -88,7 +90,8 @@ func main() {
 		Endpoints:    hostIPs,
 		Flush:        *flush,
 		ListenPort:   listenPort,
-		VipInterface: *vipInterface})
+		VipInterface: *vipInterface,
+		SyncTime:     *syncTime})
 
 	if err != nil {
 		log.Fatalf("error while initializing server context: %s", err)
@@ -100,7 +103,7 @@ func main() {
 	// sync with external store
 	if storeURLs != nil && len(*storeURLs) > 0 {
 		urls := strings.Split(*storeURLs, ",")
-		store, err := core.NewStore(urls, *storeServicePath, *storeBackendPath, *storeTimeout, ctx)
+		store, err := core.NewStore(urls, *storeServicePath, *storeBackendPath, 0, ctx)
 		if err != nil {
 			log.Fatalf("error while initializing external store sync: %s", err)
 		}
