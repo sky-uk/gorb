@@ -81,7 +81,21 @@ func (p *populator) ListServices() ([]*ServiceOptions, error) {
 }
 
 func (p *populator) ListBackends() ([]*BackendOptions, error) {
-	return nil, nil
+	ipvsBackends, err := p.ipvs.ListBackends()
+	if err != nil {
+		return nil, err
+	}
+	var backends []*BackendOptions
+	for _, ib := range ipvsBackends {
+		backend := &BackendOptions{
+			Host:   ib.IP,
+			Port:   ib.Port,
+			Method: ib.Forward,
+			Weight: ib.Weight,
+		}
+		backends = append(backends, backend)
+	}
+	return backends, nil
 }
 
 func (p *populator) populate() {

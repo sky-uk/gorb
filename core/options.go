@@ -58,7 +58,7 @@ type ServiceOptions struct {
 	Method   string `json:"method"`
 	// todo: use a list of flags
 	Flags string `json:"flags"`
-	// todo: This appears unused. Implement it.
+	// todo: This appears unused. Implement or remove it.
 	Persistent bool `json:"persistent"`
 
 	// Host string resolved to an IP, including DNS lookup.

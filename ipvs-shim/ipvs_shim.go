@@ -38,6 +38,7 @@ type IPVS interface {
 	AddBackend(key *ServiceKey, backend *Backend) error
 	UpdateBackend(key *ServiceKey, backend *Backend) error
 	DelBackend(key *ServiceKey, backend *Backend) error
+	ListBackends() ([]*Backend, error)
 }
 
 type ServiceKey struct {
