@@ -16,17 +16,17 @@ import (
 	"github.com/docker/libkv/store/consul"
 	"github.com/docker/libkv/store/etcd"
 	"github.com/docker/libkv/store/zookeeper"
-	"github.com/kobolog/gorb/core"
+	"github.com/kobolog/gorb/options"
 )
 
 type Store interface {
 	Close()
-	ListServices() ([]*core.ServiceOptions, error)
-	ListBackends(vsID string) ([]*core.BackendOptions, error)
-	CreateService(vsID string, opts *core.ServiceOptions) error
-	UpdateService(vsID string, opts *core.ServiceOptions) error
-	CreateBackend(vsID, rsID string, opts *core.BackendOptions) error
-	UpdateBackend(vsID, rsID string, opts *core.BackendOptions) error
+	ListServices() ([]*options.ServiceOptions, error)
+	ListBackends(vsID string) ([]*options.BackendOptions, error)
+	CreateService(vsID string, opts *options.ServiceOptions) error
+	UpdateService(vsID string, opts *options.ServiceOptions) error
+	CreateBackend(vsID, rsID string, opts *options.BackendOptions) error
+	UpdateBackend(vsID, rsID string, opts *options.BackendOptions) error
 	RemoveService(vsID string) error
 	RemoveBackend(rsID string) error
 }
@@ -126,8 +126,8 @@ func New(storeURLs []string, storeServicePath, storeBackendPath string) (Store, 
 //	s.ctx.Synchronize(services, backends)
 //}
 
-func (s *storeImpl) ListServices() ([]*core.ServiceOptions, error) {
-	var services []*core.ServiceOptions
+func (s *storeImpl) ListServices() ([]*options.ServiceOptions, error) {
+	var services []*options.ServiceOptions
 	// build external service map (temporary all services)
 	kvlist, err := s.kvstore.List(s.storeServicePath)
 	if err != nil {
@@ -137,7 +137,7 @@ func (s *storeImpl) ListServices() ([]*core.ServiceOptions, error) {
 		return nil, err
 	}
 	for _, kvpair := range kvlist {
-		var options core.ServiceOptions
+		var options options.ServiceOptions
 		if err := json.Unmarshal(kvpair.Value, &options); err != nil {
 			return nil, err
 		}
@@ -146,8 +146,8 @@ func (s *storeImpl) ListServices() ([]*core.ServiceOptions, error) {
 	return services, nil
 }
 
-func (s *storeImpl) ListBackends(vsID string) ([]*core.BackendOptions, error) {
-	var backends []*core.BackendOptions
+func (s *storeImpl) ListBackends(vsID string) ([]*options.BackendOptions, error) {
+	var backends []*options.BackendOptions
 	// build external backend map
 	kvlist, err := s.kvstore.List(s.storeBackendPath)
 	if err != nil {
@@ -157,7 +157,7 @@ func (s *storeImpl) ListBackends(vsID string) ([]*core.BackendOptions, error) {
 		return nil, err
 	}
 	for _, kvpair := range kvlist {
-		var options core.BackendOptions
+		var options options.BackendOptions
 		if err := json.Unmarshal(kvpair.Value, &options); err != nil {
 			return nil, err
 		}
@@ -170,7 +170,7 @@ func (s *storeImpl) Close() {
 	close(s.stopCh)
 }
 
-func (s *storeImpl) CreateService(vsID string, opts *core.ServiceOptions) error {
+func (s *storeImpl) CreateService(vsID string, opts *options.ServiceOptions) error {
 	// put to store
 	if err := s.put(s.storeServicePath+"/"+vsID, opts, false); err != nil {
 		log.Errorf("error while put service to store: %s", err)
@@ -179,7 +179,7 @@ func (s *storeImpl) CreateService(vsID string, opts *core.ServiceOptions) error 
 	return nil
 }
 
-func (s *storeImpl) UpdateService(vsID string, opts *core.ServiceOptions) error {
+func (s *storeImpl) UpdateService(vsID string, opts *options.ServiceOptions) error {
 	// put to store
 	if err := s.put(s.storeServicePath+"/"+vsID, opts, true); err != nil {
 		log.Errorf("error while put service to store: %s", err)
@@ -188,7 +188,7 @@ func (s *storeImpl) UpdateService(vsID string, opts *core.ServiceOptions) error 
 	return nil
 }
 
-func (s *storeImpl) CreateBackend(vsID, rsID string, opts *core.BackendOptions) error {
+func (s *storeImpl) CreateBackend(vsID, rsID string, opts *options.BackendOptions) error {
 	opts.VsID = vsID
 	// put to store
 	if err := s.put(s.storeBackendPath+"/"+rsID, opts, false); err != nil {
@@ -198,7 +198,7 @@ func (s *storeImpl) CreateBackend(vsID, rsID string, opts *core.BackendOptions) 
 	return nil
 }
 
-func (s *storeImpl) UpdateBackend(vsID, rsID string, opts *core.BackendOptions) error {
+func (s *storeImpl) UpdateBackend(vsID, rsID string, opts *options.BackendOptions) error {
 	opts.VsID = vsID
 	// put to store
 	if err := s.put(s.storeBackendPath+"/"+rsID, opts, true); err != nil {

@@ -25,6 +25,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/kobolog/gorb/ipvs-shim"
+	"github.com/kobolog/gorb/options"
 )
 
 type reconciler struct {
@@ -35,8 +36,8 @@ type reconciler struct {
 }
 
 type reconcilerStore interface {
-	ListServices() ([]*ServiceOptions, error)
-	ListBackends(vsID string) ([]*BackendOptions, error)
+	ListServices() ([]*options.ServiceOptions, error)
+	ListBackends(vsID string) ([]*options.BackendOptions, error)
 }
 
 // New returns a reconciler that populates the ipvs state periodically and on demand.
@@ -66,14 +67,14 @@ func (r *reconciler) Sync() {
 	r.syncCh <- struct{}{}
 }
 
-func (r *reconciler) ListServices() ([]*ServiceOptions, error) {
+func (r *reconciler) listServices() ([]*options.ServiceOptions, error) {
 	ipvsSvcs, err := r.ipvs.ListServices()
 	if err != nil {
 		return nil, err
 	}
-	var svcs []*ServiceOptions
+	var svcs []*options.ServiceOptions
 	for _, is := range ipvsSvcs {
-		svc := &ServiceOptions{
+		svc := &options.ServiceOptions{
 			Host:     is.VIP,
 			Port:     is.Port,
 			Protocol: is.Protocol,
@@ -85,14 +86,14 @@ func (r *reconciler) ListServices() ([]*ServiceOptions, error) {
 	return svcs, nil
 }
 
-func (r *reconciler) ListBackends(key *ServiceOptions) ([]*BackendOptions, error) {
+func (r *reconciler) listBackends(key *options.ServiceOptions) ([]*options.BackendOptions, error) {
 	ipvsBackends, err := r.ipvs.ListBackends(nil)
 	if err != nil {
 		return nil, err
 	}
-	var backends []*BackendOptions
+	var backends []*options.BackendOptions
 	for _, ib := range ipvsBackends {
-		backend := &BackendOptions{
+		backend := &options.BackendOptions{
 			Host:   ib.IP,
 			Port:   ib.Port,
 			Method: ib.Forward,
@@ -109,7 +110,7 @@ func (r *reconciler) reconcile() {
 		log.Errorf("unable to populate: %v", err)
 		return
 	}
-	desiredBackends, err := r.store.ListBackends()
+	desiredBackends, err := r.store.ListBackends("fixme")
 	if err != nil {
 		log.Errorf("unable to populate: %v", err)
 		return

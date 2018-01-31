@@ -18,18 +18,15 @@
    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-package core
+package options
 
 import (
 	"errors"
 	"net"
 	"strings"
 
-	"time"
-
 	"github.com/kobolog/gorb/ipvs-shim"
 	"github.com/kobolog/gorb/pulse"
-	"github.com/kobolog/gorb/store"
 )
 
 // Possible validation errors.
@@ -39,17 +36,6 @@ var (
 	ErrUnknownProtocol = errors.New("specified protocol is unknown")
 	ErrUnknownFlag     = errors.New("specified flag is unknown")
 )
-
-// ContextOptions configure Context behavior.
-type ContextOptions struct {
-	Disco        string
-	Endpoints    []net.IP
-	Flush        bool
-	ListenPort   uint16
-	VipInterface string
-	SyncTime     time.Duration
-	Store        store.Store
-}
 
 // ServiceOptions describe a virtual service.
 type ServiceOptions struct {
@@ -63,8 +49,12 @@ type ServiceOptions struct {
 	Persistent bool `json:"persistent"`
 
 	// Host string resolved to an IP, including DNS lookup.
-	host      net.IP
-	delIfAddr bool
+	//host      net.IP
+	//delIfAddr bool
+}
+
+func (o *ServiceOptions) HostIP() net.IP {
+	return net.ParseIP(o.Host)
 }
 
 // Fill missing fields and validates virtual service configuration.
@@ -75,12 +65,12 @@ func (o *ServiceOptions) Fill(defaultHost net.IP) error {
 
 	if len(o.Host) != 0 {
 		if addr, err := net.ResolveIPAddr("ip", o.Host); err == nil {
-			o.host = addr.IP
+			o.Host = addr.IP.String()
 		} else {
 			return err
 		}
 	} else if defaultHost != nil {
-		o.host = defaultHost
+		o.Host = defaultHost.String()
 	} else {
 		return ErrMissingEndpoint
 	}
@@ -142,7 +132,11 @@ type BackendOptions struct {
 	VsID   string         `json:"vsid,omitempty"`
 
 	// Host string resolved to an IP, including DNS lookup.
-	host net.IP
+	//host net.IP
+}
+
+func (b *BackendOptions) HostIP() net.IP {
+	return net.ParseIP(b.Host)
 }
 
 // Fill missing fields and validates backend configuration.
@@ -152,7 +146,7 @@ func (o *BackendOptions) Fill() error {
 	}
 
 	if addr, err := net.ResolveIPAddr("ip", o.Host); err == nil {
-		o.host = addr.IP
+		o.Host = addr.IP.String()
 	} else {
 		return err
 	}

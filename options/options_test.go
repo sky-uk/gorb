@@ -1,4 +1,4 @@
-package core
+package options
 
 import (
 	"testing"

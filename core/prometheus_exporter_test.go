@@ -3,6 +3,7 @@ package core
 import (
 	"testing"
 
+	"github.com/kobolog/gorb/options"
 	"github.com/kobolog/gorb/pulse"
 )
 
@@ -11,14 +12,14 @@ func TestCollector(t *testing.T) {
 		services: make(map[string]*service),
 		backends: make(map[string]*backend),
 	}
-	ctx.services["service1"] = &service{options: &ServiceOptions{
+	ctx.services["service1"] = &service{options: &options.ServiceOptions{
 		Host:       "localhost",
 		Port:       1234,
 		Protocol:   "tcp",
 		Method:     "wlc",
 		Persistent: true,
 	}}
-	ctx.backends["service1-backend1"] = &backend{options: &BackendOptions{
+	ctx.backends["service1-backend1"] = &backend{options: &options.BackendOptions{
 		Host:   "localhost",
 		Port:   1234,
 		Weight: 1,
