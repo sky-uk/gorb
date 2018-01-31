@@ -164,6 +164,66 @@ func (s *shim) DelService(key *ServiceKey) error {
 	return s.handle.DelService(svc)
 }
 
+func convertFlagbits(flagbits uint32) []string {
+	var flags []string
+	var possibleFlags = map[uint32]string{
+		libipvs.IP_VS_SVC_F_SCHED1: "flag-1",
+		libipvs.IP_VS_SVC_F_SCHED2: "flag-2",
+		libipvs.IP_VS_SVC_F_SCHED3: "flag-3",
+	}
+	for f, v := range possibleFlags {
+		if flagbits&f != 0 {
+			flags = append(flags, v)
+		}
+	}
+	return flags
+}
+
+func convertShFlagbits(flagbits uint32) []string {
+	var flags []string
+	var possibleFlags = map[uint32]string{
+		libipvs.IP_VS_SVC_F_SCHED_SH_FALLBACK: "sh-fallback",
+		libipvs.IP_VS_SVC_F_SCHED_SH_PORT:     "sh-port",
+	}
+	for f, v := range possibleFlags {
+		if flagbits&f != 0 {
+			flags = append(flags, v)
+		}
+	}
+	return flags
+}
+
+func (s *shim) ListServices() ([]*Service, error) {
+	ipvsSvcs, err := s.handle.ListServices()
+	if err != nil {
+		return nil, err
+	}
+
+	var svcs []*Service
+	for _, isvc := range ipvsSvcs {
+		var flags []string
+		if isvc.SchedName == "sh" {
+			flags = convertShFlagbits(isvc.Flags.Flags)
+		} else {
+			flags = convertFlagbits(isvc.Flags.Flags)
+		}
+
+		svc := &Service{
+			ServiceKey: ServiceKey{
+				VIP:      isvc.Address.String(),
+				Port:     isvc.Port,
+				Protocol: isvc.Protocol.String(),
+			},
+			Scheduler: isvc.SchedName,
+			Flags:     flags,
+		}
+
+		svcs = append(svcs, svc)
+	}
+
+	return svcs, nil
+}
+
 func createDest(backend *Backend, full bool) (*libipvs.Destination, error) {
 	dest := &libipvs.Destination{
 		Address:       net.ParseIP(backend.IP),
