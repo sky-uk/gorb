@@ -29,6 +29,7 @@ import (
 
 	"github.com/kobolog/gorb/ipvs-shim"
 	"github.com/kobolog/gorb/pulse"
+	"github.com/kobolog/gorb/store"
 )
 
 // Possible validation errors.
@@ -47,7 +48,7 @@ type ContextOptions struct {
 	ListenPort   uint16
 	VipInterface string
 	SyncTime     time.Duration
-	Store        *Store
+	Store        store.Store
 }
 
 // ServiceOptions describe a virtual service.

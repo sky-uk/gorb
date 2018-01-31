@@ -1,4 +1,4 @@
-package core
+package store
 
 import (
 	"errors"
@@ -16,16 +16,29 @@ import (
 	"github.com/docker/libkv/store/consul"
 	"github.com/docker/libkv/store/etcd"
 	"github.com/docker/libkv/store/zookeeper"
+	"github.com/kobolog/gorb/core"
 )
 
-type Store struct {
+type Store interface {
+	Close()
+	ListServices() ([]*core.ServiceOptions, error)
+	ListBackends(vsID string) ([]*core.BackendOptions, error)
+	CreateService(vsID string, opts *core.ServiceOptions) error
+	UpdateService(vsID string, opts *core.ServiceOptions) error
+	CreateBackend(vsID, rsID string, opts *core.BackendOptions) error
+	UpdateBackend(vsID, rsID string, opts *core.BackendOptions) error
+	RemoveService(vsID string) error
+	RemoveBackend(rsID string) error
+}
+
+type storeImpl struct {
 	kvstore          store.Store
 	storeServicePath string
 	storeBackendPath string
 	stopCh           chan struct{}
 }
 
-func NewStore(storeURLs []string, storeServicePath, storeBackendPath string) (*Store, error) {
+func New(storeURLs []string, storeServicePath, storeBackendPath string) (Store, error) {
 	var scheme string
 	var storePath string
 	var hosts []string
@@ -72,7 +85,7 @@ func NewStore(storeURLs []string, storeServicePath, storeBackendPath string) (*S
 		return nil, err
 	}
 
-	store := &Store{
+	store := &storeImpl{
 		kvstore:          kvstore,
 		storeServicePath: path.Join(storePath, storeServicePath),
 		storeBackendPath: path.Join(storePath, storeBackendPath),
@@ -96,7 +109,7 @@ func NewStore(storeURLs []string, storeServicePath, storeBackendPath string) (*S
 	return store, nil
 }
 
-//func (s *Store) Sync() {
+//func (s *storeImpl) Sync() {
 //	// build external services map
 //	services, err := s.getExternalServices()
 //	if err != nil {
@@ -113,8 +126,8 @@ func NewStore(storeURLs []string, storeServicePath, storeBackendPath string) (*S
 //	s.ctx.Synchronize(services, backends)
 //}
 
-func (s *Store) ListServices() ([]*ServiceOptions, error) {
-	var services []*ServiceOptions
+func (s *storeImpl) ListServices() ([]*core.ServiceOptions, error) {
+	var services []*core.ServiceOptions
 	// build external service map (temporary all services)
 	kvlist, err := s.kvstore.List(s.storeServicePath)
 	if err != nil {
@@ -124,7 +137,7 @@ func (s *Store) ListServices() ([]*ServiceOptions, error) {
 		return nil, err
 	}
 	for _, kvpair := range kvlist {
-		var options ServiceOptions
+		var options core.ServiceOptions
 		if err := json.Unmarshal(kvpair.Value, &options); err != nil {
 			return nil, err
 		}
@@ -133,8 +146,8 @@ func (s *Store) ListServices() ([]*ServiceOptions, error) {
 	return services, nil
 }
 
-func (s *Store) ListBackends() ([]*BackendOptions, error) {
-	var backends []*BackendOptions
+func (s *storeImpl) ListBackends(vsID string) ([]*core.BackendOptions, error) {
+	var backends []*core.BackendOptions
 	// build external backend map
 	kvlist, err := s.kvstore.List(s.storeBackendPath)
 	if err != nil {
@@ -144,7 +157,7 @@ func (s *Store) ListBackends() ([]*BackendOptions, error) {
 		return nil, err
 	}
 	for _, kvpair := range kvlist {
-		var options BackendOptions
+		var options core.BackendOptions
 		if err := json.Unmarshal(kvpair.Value, &options); err != nil {
 			return nil, err
 		}
@@ -153,11 +166,11 @@ func (s *Store) ListBackends() ([]*BackendOptions, error) {
 	return backends, nil
 }
 
-func (s *Store) Close() {
+func (s *storeImpl) Close() {
 	close(s.stopCh)
 }
 
-func (s *Store) CreateService(vsID string, opts *ServiceOptions) error {
+func (s *storeImpl) CreateService(vsID string, opts *core.ServiceOptions) error {
 	// put to store
 	if err := s.put(s.storeServicePath+"/"+vsID, opts, false); err != nil {
 		log.Errorf("error while put service to store: %s", err)
@@ -166,7 +179,7 @@ func (s *Store) CreateService(vsID string, opts *ServiceOptions) error {
 	return nil
 }
 
-func (s *Store) UpdateService(vsID string, opts *ServiceOptions) error {
+func (s *storeImpl) UpdateService(vsID string, opts *core.ServiceOptions) error {
 	// put to store
 	if err := s.put(s.storeServicePath+"/"+vsID, opts, true); err != nil {
 		log.Errorf("error while put service to store: %s", err)
@@ -175,7 +188,7 @@ func (s *Store) UpdateService(vsID string, opts *ServiceOptions) error {
 	return nil
 }
 
-func (s *Store) CreateBackend(vsID, rsID string, opts *BackendOptions) error {
+func (s *storeImpl) CreateBackend(vsID, rsID string, opts *core.BackendOptions) error {
 	opts.VsID = vsID
 	// put to store
 	if err := s.put(s.storeBackendPath+"/"+rsID, opts, false); err != nil {
@@ -185,7 +198,7 @@ func (s *Store) CreateBackend(vsID, rsID string, opts *BackendOptions) error {
 	return nil
 }
 
-func (s *Store) UpdateBackend(vsID, rsID string, opts *BackendOptions) error {
+func (s *storeImpl) UpdateBackend(vsID, rsID string, opts *core.BackendOptions) error {
 	opts.VsID = vsID
 	// put to store
 	if err := s.put(s.storeBackendPath+"/"+rsID, opts, true); err != nil {
@@ -195,7 +208,7 @@ func (s *Store) UpdateBackend(vsID, rsID string, opts *BackendOptions) error {
 	return nil
 }
 
-func (s *Store) RemoveService(vsID string) error {
+func (s *storeImpl) RemoveService(vsID string) error {
 	if err := s.kvstore.DeleteTree(s.storeServicePath + "/" + vsID); err != nil {
 		log.Errorf("error while delete service from store: %s", err)
 		return err
@@ -203,7 +216,7 @@ func (s *Store) RemoveService(vsID string) error {
 	return nil
 }
 
-func (s *Store) RemoveBackend(rsID string) error {
+func (s *storeImpl) RemoveBackend(rsID string) error {
 	if err := s.kvstore.DeleteTree(s.storeBackendPath + "/" + rsID); err != nil {
 		log.Errorf("error while delete backend from store: %s", err)
 		return err
@@ -211,7 +224,7 @@ func (s *Store) RemoveBackend(rsID string) error {
 	return nil
 }
 
-func (s *Store) put(key string, value interface{}, overwrite bool) error {
+func (s *storeImpl) put(key string, value interface{}, overwrite bool) error {
 	// marshal value
 	var byteValue []byte
 	var isDir bool
@@ -240,7 +253,7 @@ func (s *Store) put(key string, value interface{}, overwrite bool) error {
 	return nil
 }
 
-func (s *Store) getID(key string) string {
+func (s *storeImpl) getID(key string) string {
 	index := strings.LastIndex(key, "/")
 	if index <= 0 {
 		return key

@@ -25,17 +25,18 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/kobolog/gorb/ipvs-shim"
+	"github.com/kobolog/gorb/store"
 )
 
 type reconciler struct {
 	period time.Duration
 	syncCh chan struct{}
-	store  *Store
+	store  store.Store
 	ipvs   ipvs_shim.IPVS
 }
 
 // New returns a reconciler that populates the ipvs state periodically and on demand.
-func NewReconciler(period time.Duration, store *Store) *reconciler {
+func NewReconciler(period time.Duration, store store.Store) *reconciler {
 	return &reconciler{
 		period: period,
 		syncCh: make(chan struct{}),
@@ -117,21 +118,19 @@ func (r *reconciler) reconcile() {
 		log.Debugf("  BACKEND: %s", v)
 	}
 
-	actualServices, err := r.ListServices()
-	if err != nil {
-		log.Errorf("unable to populate: %v", err)
-		return
-	}
+	//actualServices, err := r.ListServices()
+	//if err != nil {
+	//	log.Errorf("unable to populate: %v", err)
+	//	return
+	//}
 
-	for _, actualService := range actualServices {
-		actualBackends, err := r.ListBackends()
-		if err != nil {
-			log.Errorf("unable to populate: %v", err)
-			return
-		}
-	}
-
-
+	//for _, actualService := range actualServices {
+	//	actualBackends, err := r.ListBackends()
+	//	if err != nil {
+	//		log.Errorf("unable to populate: %v", err)
+	//		return
+	//	}
+	//}
 
 	// synchronize services with store
 	//for id, _ := range ctx.services {

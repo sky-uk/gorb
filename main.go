@@ -36,6 +36,7 @@ import (
 
 	"time"
 
+	"github.com/kobolog/gorb/store"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -91,7 +92,7 @@ func main() {
 
 	// sync with external store
 	urls := strings.Split(*storeURLs, ",")
-	store, err := core.NewStore(urls, *storeServicePath, *storeBackendPath)
+	store, err := store.New(urls, *storeServicePath, *storeBackendPath)
 	if err != nil {
 		log.Fatalf("error while initializing external store sync: %s", err)
 	}

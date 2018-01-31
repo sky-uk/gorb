@@ -35,6 +35,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/kobolog/gorb/ipvs-shim"
+	"github.com/kobolog/gorb/store"
 )
 
 // Possible runtime errors.
@@ -67,7 +68,7 @@ type Context struct {
 	disco        disco.Driver
 	stopCh       chan struct{}
 	vipInterface netlink.Link
-	store        *Store
+	store        store.Store
 	populator    *reconciler
 }
 

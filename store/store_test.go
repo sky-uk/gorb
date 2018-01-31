@@ -1,4 +1,4 @@
-package core
+package store
 
 import (
 	"testing"
@@ -10,6 +10,7 @@ import (
 	libkvmock "github.com/docker/libkv/store/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/kobolog/gorb/core"
 )
 
 type storeMock struct {
@@ -32,7 +33,7 @@ func TestMultipleURLs(t *testing.T) {
 	libkv.AddStore("mock", m.mockNew())
 	m.On("List", "/").Return([]*store.KVPair{}, nil)
 
-	store, err := NewStore(storeURLs, "/", "/", 60, &Context{})
+	store, err := New(storeURLs, "/", "/")
 
 	assert.NoError(err)
 	assert.Equal([]string{"127.0.0.1:2000", "127.0.0.2:2001", "127.0.0.3:2002"}, m.Endpoints)
@@ -47,7 +48,7 @@ func TestErrorIfSchemeMismatch(t *testing.T) {
 	m.On("List", "/").Return([]*store.KVPair{}, nil)
 
 	storeURLs := []string{"mock://127.0.0.1:2000", "mismatch://127.0.0.2:2001", "mock://127.0.0.3:2002"}
-	_, err := NewStore(storeURLs, "/", "/", 60, &Context{})
+	_, err := New(storeURLs, "/", "/")
 
 	assert.Error(err)
 }
@@ -59,7 +60,7 @@ func TestErrorIfPathMismatch(t *testing.T) {
 	m.On("List", "/").Return([]*store.KVPair{}, nil)
 
 	storeURLs := []string{"mock://127.0.0.1:2000", "mock://127.0.0.2:2001/mismatched/path/", "mock://127.0.0.3:2002"}
-	_, err := NewStore(storeURLs, "/", "/", 60, &Context{})
+	_, err := New(storeURLs, "/", "/")
 
 	assert.Error(err)
 }
@@ -69,7 +70,7 @@ func TestUpdateService(t *testing.T) {
 	libkv.AddStore("mock", m.mockNew())
 
 	vsID := "my-virtual-server"
-	opts := &ServiceOptions{
+	opts := &core.ServiceOptions{
 		Host:       "10.10.0.0",
 		Port:       8080,
 		Protocol:   "tcp",
@@ -82,7 +83,7 @@ func TestUpdateService(t *testing.T) {
 	m.On("Exists", "/"+vsID).Return(false, nil)
 	m.On("Put", "/"+vsID, optsBytes, mock.Anything).Return(nil)
 
-	store, _ := NewStore(storeURLs, "", "", 60, &Context{})
+	store, _ := New(storeURLs, "", "")
 	store.UpdateService(vsID, opts)
 
 	m.AssertExpectations(t)
