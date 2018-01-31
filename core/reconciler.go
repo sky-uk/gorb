@@ -25,18 +25,22 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/kobolog/gorb/ipvs-shim"
-	"github.com/kobolog/gorb/store"
 )
 
 type reconciler struct {
 	period time.Duration
 	syncCh chan struct{}
-	store  store.Store
+	store  reconcilerStore
 	ipvs   ipvs_shim.IPVS
 }
 
+type reconcilerStore interface {
+	ListServices() ([]*ServiceOptions, error)
+	ListBackends(vsID string) ([]*BackendOptions, error)
+}
+
 // New returns a reconciler that populates the ipvs state periodically and on demand.
-func NewReconciler(period time.Duration, store store.Store) *reconciler {
+func NewReconciler(period time.Duration, store reconcilerStore) *reconciler {
 	return &reconciler{
 		period: period,
 		syncCh: make(chan struct{}),
