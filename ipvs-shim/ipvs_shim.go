@@ -7,26 +7,35 @@ import (
 
 	"fmt"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/mqliang/libipvs"
 )
 
 var (
 	schedulerFlags = map[string]uint32{
-		"sh-fallback": libipvs.IP_VS_SVC_F_SCHED_SH_FALLBACK,
-		"sh-port":     libipvs.IP_VS_SVC_F_SCHED_SH_PORT,
-		"flag-1":      libipvs.IP_VS_SVC_F_SCHED1,
-		"flag-2":      libipvs.IP_VS_SVC_F_SCHED2,
-		"flag-3":      libipvs.IP_VS_SVC_F_SCHED3,
+		"flag-1": libipvs.IP_VS_SVC_F_SCHED1,
+		"flag-2": libipvs.IP_VS_SVC_F_SCHED2,
+		"flag-3": libipvs.IP_VS_SVC_F_SCHED3,
 	}
+	schedulerFlagsInverted map[uint32]string
 
-	forwardingMethods = map[string]uint32{
+	forwardingMethods = map[string]libipvs.FwdMethod{
 		"dr":     libipvs.IP_VS_CONN_F_DROUTE,
 		"nat":    libipvs.IP_VS_CONN_F_MASQ,
 		"tunnel": libipvs.IP_VS_CONN_F_TUNNEL,
-		"ipip":   libipvs.IP_VS_CONN_F_TUNNEL,
 	}
+	forwardingMethodsInverted map[libipvs.FwdMethod]string
 )
+
+func init() {
+	schedulerFlagsInverted = make(map[uint32]string)
+	for k, v := range schedulerFlags {
+		schedulerFlagsInverted[v] = k
+	}
+	forwardingMethodsInverted = make(map[libipvs.FwdMethod]string)
+	for k, v := range forwardingMethods {
+		forwardingMethodsInverted[v] = k
+	}
+}
 
 type IPVS interface {
 	Init() error
@@ -98,6 +107,17 @@ func (s *shim) Flush() error {
 	return s.handle.Flush()
 }
 
+func protocolNumber(protocol string) (uint16, error) {
+	switch protocol {
+	case "tcp":
+		return syscall.IPPROTO_TCP, nil
+	case "udp":
+		return syscall.IPPROTO_UDP, nil
+	default:
+		return 0, fmt.Errorf("unknown protocol %q", protocol)
+	}
+}
+
 func initIPVSService(key *ServiceKey) (*libipvs.Service, error) {
 	protNum, err := protocolNumber(key.Protocol)
 	if err != nil {
@@ -112,27 +132,21 @@ func initIPVSService(key *ServiceKey) (*libipvs.Service, error) {
 	return svc, nil
 }
 
-func createFlagbits(flags []string) uint32 {
+func createFlagbits(flags []string) (libipvs.Flags, error) {
 	var flagbits uint32
 	for _, flag := range flags {
 		if b, exists := schedulerFlags[flag]; exists {
 			flagbits |= b
 		} else {
-			log.Warnf("Unknown scheduler flag %q, ignoring", flag)
+			return libipvs.Flags{}, fmt.Errorf("unknown scheduler flag %q, ignoring", flag)
 		}
 	}
-	return flagbits
-}
-
-func protocolNumber(protocol string) (uint16, error) {
-	switch protocol {
-	case "tcp":
-		return syscall.IPPROTO_TCP, nil
-	case "udp":
-		return syscall.IPPROTO_UDP, nil
-	default:
-		return 0, fmt.Errorf("unknown protocol %q", protocol)
+	r := libipvs.Flags{
+		Flags: flagbits,
+		// set all bits to 1
+		Mask: ^uint32(0),
 	}
+	return r, nil
 }
 
 func (s *shim) AddService(svc *Service) error {
@@ -141,8 +155,10 @@ func (s *shim) AddService(svc *Service) error {
 		return err
 	}
 	ipvsSvc.SchedName = svc.Scheduler
-	ipvsSvc.Flags.Flags = createFlagbits(svc.Flags)
-	ipvsSvc.Flags.Mask = ^uint32(0)
+	ipvsSvc.Flags, err = createFlagbits(svc.Flags)
+	if err != nil {
+		return err
+	}
 	return s.handle.NewService(ipvsSvc)
 }
 
@@ -152,8 +168,10 @@ func (s *shim) UpdateService(svc *Service) error {
 		return err
 	}
 	ipvsSvc.SchedName = svc.Scheduler
-	ipvsSvc.Flags.Flags = createFlagbits(svc.Flags)
-	ipvsSvc.Flags.Mask = ^uint32(0)
+	ipvsSvc.Flags, err = createFlagbits(svc.Flags)
+	if err != nil {
+		return err
+	}
 	return s.handle.UpdateService(ipvsSvc)
 }
 
@@ -167,26 +185,7 @@ func (s *shim) DelService(key *ServiceKey) error {
 
 func convertFlagbits(flagbits uint32) []string {
 	var flags []string
-	var possibleFlags = map[uint32]string{
-		libipvs.IP_VS_SVC_F_SCHED1: "flag-1",
-		libipvs.IP_VS_SVC_F_SCHED2: "flag-2",
-		libipvs.IP_VS_SVC_F_SCHED3: "flag-3",
-	}
-	for f, v := range possibleFlags {
-		if flagbits&f != 0 {
-			flags = append(flags, v)
-		}
-	}
-	return flags
-}
-
-func convertShFlagbits(flagbits uint32) []string {
-	var flags []string
-	var possibleFlags = map[uint32]string{
-		libipvs.IP_VS_SVC_F_SCHED_SH_FALLBACK: "sh-fallback",
-		libipvs.IP_VS_SVC_F_SCHED_SH_PORT:     "sh-port",
-	}
-	for f, v := range possibleFlags {
+	for f, v := range schedulerFlagsInverted {
 		if flagbits&f != 0 {
 			flags = append(flags, v)
 		}
@@ -202,13 +201,6 @@ func (s *shim) ListServices() ([]*Service, error) {
 
 	var svcs []*Service
 	for _, isvc := range ipvsSvcs {
-		var flags []string
-		if isvc.SchedName == "sh" {
-			flags = convertShFlagbits(isvc.Flags.Flags)
-		} else {
-			flags = convertFlagbits(isvc.Flags.Flags)
-		}
-
 		svc := &Service{
 			ServiceKey: ServiceKey{
 				VIP:      isvc.Address.String(),
@@ -216,7 +208,7 @@ func (s *shim) ListServices() ([]*Service, error) {
 				Protocol: isvc.Protocol.String(),
 			},
 			Scheduler: isvc.SchedName,
-			Flags:     flags,
+			Flags:     convertFlagbits(isvc.Flags.Flags),
 		}
 
 		svcs = append(svcs, svc)
@@ -277,4 +269,33 @@ func (s *shim) DelBackend(key *ServiceKey, backend *Backend) error {
 		return err
 	}
 	return s.handle.DelDestination(svc, dest)
+}
+
+func (s *shim) ListBackends(key *ServiceKey) ([]*Backend, error) {
+	svc, err := initIPVSService(key)
+	if err != nil {
+		return nil, err
+	}
+
+	dests, err := s.handle.ListDestinations(svc)
+	if err != nil {
+		return nil, err
+	}
+
+	var backends []*Backend
+	for _, dest := range dests {
+		fwd, ok := forwardingMethodsInverted[dest.FwdMethod]
+		if !ok {
+			return nil, fmt.Errorf("unable to list backends, unexpected forward method %#x", dest.FwdMethod)
+		}
+		backend := &Backend{
+			IP:      dest.Address.String(),
+			Port:    dest.Port,
+			Weight:  dest.Weight,
+			Forward: fwd,
+		}
+		backends = append(backends, backend)
+	}
+
+	return backends, nil
 }
