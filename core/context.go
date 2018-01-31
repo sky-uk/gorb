@@ -68,7 +68,7 @@ type Context struct {
 	stopCh       chan struct{}
 	vipInterface netlink.Link
 	store        *Store
-	populator    *populator
+	populator    *reconciler
 }
 
 // NewContext creates a new Context and initializes IPVS.
@@ -134,7 +134,7 @@ func NewContext(options ContextOptions) (*Context, error) {
 	}
 
 	ctx.store = options.Store
-	ctx.populator = NewPopulator(options.SyncTime, options.Store)
+	ctx.populator = NewReconciler(options.SyncTime, options.Store)
 
 	return ctx, nil
 }

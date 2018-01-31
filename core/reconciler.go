@@ -27,42 +27,42 @@ import (
 	"github.com/kobolog/gorb/ipvs-shim"
 )
 
-type populator struct {
+type reconciler struct {
 	period time.Duration
 	syncCh chan struct{}
 	store  *Store
 	ipvs   ipvs_shim.IPVS
 }
 
-// New returns a populator that populates the ipvs state periodically and on demand.
-func NewPopulator(period time.Duration, store *Store) *populator {
-	return &populator{
+// New returns a reconciler that populates the ipvs state periodically and on demand.
+func NewReconciler(period time.Duration, store *Store) *reconciler {
+	return &reconciler{
 		period: period,
 		syncCh: make(chan struct{}),
 		store:  store,
 	}
 }
 
-func (p *populator) Start() {
+func (r *reconciler) Start() {
 	go func() {
 		for {
-			t := time.NewTimer(p.period)
+			t := time.NewTimer(r.period)
 			select {
 			case <-t.C:
-				p.populate()
-			case <-p.syncCh:
-				p.populate()
+				r.reconcile()
+			case <-r.syncCh:
+				r.reconcile()
 			}
 		}
 	}()
 }
 
-func (p *populator) Sync() {
-	p.syncCh <- struct{}{}
+func (r *reconciler) Sync() {
+	r.syncCh <- struct{}{}
 }
 
-func (p *populator) ListServices() ([]*ServiceOptions, error) {
-	ipvsSvcs, err := p.ipvs.ListServices()
+func (r *reconciler) ListServices() ([]*ServiceOptions, error) {
+	ipvsSvcs, err := r.ipvs.ListServices()
 	if err != nil {
 		return nil, err
 	}
@@ -80,8 +80,8 @@ func (p *populator) ListServices() ([]*ServiceOptions, error) {
 	return svcs, nil
 }
 
-func (p *populator) ListBackends() ([]*BackendOptions, error) {
-	ipvsBackends, err := p.ipvs.ListBackends()
+func (r *reconciler) ListBackends(key *ServiceOptions) ([]*BackendOptions, error) {
+	ipvsBackends, err := r.ipvs.ListBackends(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -98,13 +98,13 @@ func (p *populator) ListBackends() ([]*BackendOptions, error) {
 	return backends, nil
 }
 
-func (p *populator) populate() {
-	desiredServices, err := p.store.ListServices()
+func (r *reconciler) reconcile() {
+	desiredServices, err := r.store.ListServices()
 	if err != nil {
 		log.Errorf("unable to populate: %v", err)
 		return
 	}
-	desiredBackends, err := p.store.ListBackends()
+	desiredBackends, err := r.store.ListBackends()
 	if err != nil {
 		log.Errorf("unable to populate: %v", err)
 		return
@@ -117,16 +117,21 @@ func (p *populator) populate() {
 		log.Debugf("  BACKEND: %s", v)
 	}
 
-	actualServices, err := p.ListServices()
+	actualServices, err := r.ListServices()
 	if err != nil {
 		log.Errorf("unable to populate: %v", err)
 		return
 	}
-	actualBackends, err := p.ListBackends()
-	if err != nil {
-		log.Errorf("unable to populate: %v", err)
-		return
+
+	for _, actualService := range actualServices {
+		actualBackends, err := r.ListBackends()
+		if err != nil {
+			log.Errorf("unable to populate: %v", err)
+			return
+		}
 	}
+
+
 
 	// synchronize services with store
 	//for id, _ := range ctx.services {
