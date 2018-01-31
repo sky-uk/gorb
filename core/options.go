@@ -52,12 +52,14 @@ type ContextOptions struct {
 
 // ServiceOptions describe a virtual service.
 type ServiceOptions struct {
-	Host       string `json:"host"`
-	Port       uint16 `json:"port"`
-	Protocol   string `json:"protocol"`
-	Method     string `json:"method"`
-	Flags      string `json:"flags"`
-	Persistent bool   `json:"persistent"`
+	Host     string `json:"host"`
+	Port     uint16 `json:"port"`
+	Protocol string `json:"protocol"`
+	Method   string `json:"method"`
+	// todo: use a list of flags
+	Flags string `json:"flags"`
+	// todo: This appears unused. Implement it.
+	Persistent bool `json:"persistent"`
 
 	// Host string resolved to an IP, including DNS lookup.
 	host      net.IP

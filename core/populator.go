@@ -21,6 +21,8 @@ package core
 import (
 	"time"
 
+	"strings"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/kobolog/gorb/ipvs-shim"
 )
@@ -65,9 +67,13 @@ func (p *populator) ListServices() ([]*ServiceOptions, error) {
 		return nil, err
 	}
 	var svcs []*ServiceOptions
-	for _, isvc := range ipvsSvcs {
+	for _, is := range ipvsSvcs {
 		svc := &ServiceOptions{
-			Host: isvc.VIP,
+			Host:     is.VIP,
+			Port:     is.Port,
+			Protocol: is.Protocol,
+			Method:   is.Scheduler,
+			Flags:    strings.Join(is.Flags, "|"),
 		}
 		svcs = append(svcs, svc)
 	}
