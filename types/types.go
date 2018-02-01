@@ -23,10 +23,8 @@ package types
 import (
 	"errors"
 	"net"
-	"strings"
 
 	"github.com/deckarep/golang-set"
-	"github.com/kobolog/gorb/ipvs-shim"
 	"github.com/kobolog/gorb/pulse"
 )
 
@@ -38,161 +36,138 @@ var (
 	ErrUnknownFlag     = errors.New("specified flag is unknown")
 )
 
+type ServiceKey struct {
+	VIP      net.IP `json:"vip"`
+	Port     uint16 `json:"port"`
+	Protocol string `json:"protocol"`
+}
+
 // Service describes a virtual service.
 type Service struct {
-	Host     string   `json:"host"`
-	Port     uint16   `json:"port"`
-	Protocol string   `json:"protocol"`
-	Method   string   `json:"method"`
-	Flags    []string `json:"flags"`
+	ServiceKey `json:"serviceKey"`
+	Scheduler  string   `json:"scheduler"`
+	Flags      []string `json:"flags"`
 }
 
 func (o *Service) HostIP() net.IP {
-	return net.ParseIP(o.Host)
+	return o.VIP
 }
 
 func (o *Service) Flagset() mapset.Set {
 	s := mapset.NewThreadUnsafeSet()
 	for _, f := range o.Flags {
-		s.Add(&f)
+		s.Add(f)
 	}
 	return s
 }
 
 // Fill missing fields and validates virtual service configuration.
 func (o *Service) Fill(defaultHost net.IP) error {
-	if o.Port == 0 {
-		return ErrMissingEndpoint
-	}
+	//if o.Port == 0 {
+	//	return ErrMissingEndpoint
+	//}
 
-	if len(o.Host) != 0 {
-		if addr, err := net.ResolveIPAddr("ip", o.Host); err == nil {
-			o.Host = addr.IP.String()
-		} else {
-			return err
-		}
-	} else if defaultHost != nil {
-		o.Host = defaultHost.String()
-	} else {
-		return ErrMissingEndpoint
-	}
+	//if len(o.Host) != 0 {
+	//	if addr, err := net.ResolveIPAddr("ip", o.Host); err == nil {
+	//		o.Host = addr.IP.String()
+	//	} else {
+	//		return err
+	//	}
+	//} else if defaultHost != nil {
+	//	o.Host = defaultHost.String()
+	//} else {
+	//	return ErrMissingEndpoint
+	//}
 
-	if len(o.Protocol) == 0 {
-		o.Protocol = "tcp"
-	}
-
-	o.Protocol = strings.ToLower(o.Protocol)
-	if !ipvs_shim.ValidProtocol(o.Protocol) {
-		return ErrUnknownProtocol
-	}
-
-	if len(o.Flags) != 0 {
-		for _, flag := range o.Flags {
-			if ok := ipvs_shim.ValidFlag(flag); !ok {
-				return ErrUnknownFlag
-			}
-		}
-	}
-
-	if len(o.Method) == 0 {
-		// WRR since Pulse will dynamically reweight backends.
-		o.Method = "wrr"
-	}
+	//if len(o.Protocol) == 0 {
+	//	o.Protocol = "tcp"
+	//}
+	//
+	//o.Protocol = strings.ToLower(o.Protocol)
+	//if !ipvs_shim.ValidProtocol(o.Protocol) {
+	//	return ErrUnknownProtocol
+	//}
+	//
+	//if len(o.Flags) != 0 {
+	//	for _, flag := range o.Flags {
+	//		if ok := ipvs_shim.ValidFlag(flag); !ok {
+	//			return ErrUnknownFlag
+	//		}
+	//	}
+	//}
+	//
+	//if len(o.Scheduler) == 0 {
+	//	// WRR since Pulse will dynamically reweight backends.
+	//	o.Scheduler = "wrr"
+	//}
 
 	return nil
 }
 
-func (o *Service) KeyIsEqual(options *Service) bool {
-	if o.Host != options.Host {
-		return false
-	}
-	if o.Port != options.Port {
-		return false
-	}
-	if o.Protocol != options.Protocol {
-		return false
-	}
-	return true
+func (s *ServiceKey) Equal(other *ServiceKey) bool {
+	return s.VIP.Equal(other.VIP) &&
+		s.Port == other.Port &&
+		s.Protocol == other.Protocol
 }
 
-func (o *Service) IsEqual(other *Service) bool {
-	if o.Host != other.Host {
-		return false
-	}
-	if o.Port != other.Port {
-		return false
-	}
-	if o.Protocol != other.Protocol {
-		return false
-	}
-	if o.Flagset().Equal(other.Flagset()) {
-		return false
-	}
-	if o.Method != other.Method {
-		return false
-	}
-	return true
+func (o *Service) Equal(other *Service) bool {
+	return o.ServiceKey.Equal(&other.ServiceKey) &&
+		o.Flagset().Equal(other.Flagset()) &&
+		o.Scheduler == other.Scheduler
 }
 
-// BackendOptions describe a virtual service backend.
-type BackendOptions struct {
-	Host   string         `json:"host"`
-	Port   uint16         `json:"port"`
-	Weight uint32         `json:"weight"`
-	Method string         `json:"method"`
-	Pulse  *pulse.Options `json:"pulse"`
-	VsID   string         `json:"vsid,omitempty"`
-
-	// Host string resolved to an IP, including DNS lookup.
-	//host net.IP
-}
-
-func (b *BackendOptions) HostIP() net.IP {
-	return net.ParseIP(b.Host)
+// Backend describe a virtual service backend.
+type Backend struct {
+	IP      net.IP `json:"ip"`
+	Port    uint16 `json:"port"`
+	Weight  uint32 `json:"weight"`
+	Forward string `json:"forward"`
+	// Pulse is optional and unused by ipvs.
+	Pulse *pulse.Options `json:"pulse"`
 }
 
 // Fill missing fields and validates backend configuration.
-func (o *BackendOptions) Fill() error {
-	if len(o.Host) == 0 || o.Port == 0 {
-		return ErrMissingEndpoint
-	}
-
-	if addr, err := net.ResolveIPAddr("ip", o.Host); err == nil {
-		o.Host = addr.IP.String()
-	} else {
-		return err
-	}
-
-	if o.Weight <= 0 {
-		o.Weight = 100
-	}
-
-	if len(o.Method) == 0 {
-		o.Method = "nat"
-	}
-
-	o.Method = strings.ToLower(o.Method)
-	if !ipvs_shim.ValidForwarding(o.Method) {
-		return ErrUnknownMethod
-	}
-
-	if o.Pulse == nil {
-		// It doesn't make much sense to have a backend with no Pulse.
-		o.Pulse = &pulse.Options{}
-	}
+func (o *Backend) Fill() error {
+	//if len(o.Host) == 0 || o.Port == 0 {
+	//	return ErrMissingEndpoint
+	//}
+	//
+	//if addr, err := net.ResolveIPAddr("ip", o.Host); err == nil {
+	//	o.Host = addr.IP.String()
+	//} else {
+	//	return err
+	//}
+	//
+	//if o.Weight <= 0 {
+	//	o.Weight = 100
+	//}
+	//
+	//if len(o.Method) == 0 {
+	//	o.Method = "nat"
+	//}
+	//
+	//o.Method = strings.ToLower(o.Method)
+	//if !ipvs_shim.ValidForwarding(o.Method) {
+	//	return ErrUnknownMethod
+	//}
+	//
+	//if o.Pulse == nil {
+	//	// It doesn't make much sense to have a backend with no Pulse.
+	//	o.Pulse = &pulse.Options{}
+	//}
 
 	return nil
 }
 
-func (o *BackendOptions) CompareStoreOptions(options *BackendOptions) bool {
-	if o.Host != options.Host {
-		return false
-	}
-	if o.Port != options.Port {
-		return false
-	}
-	if o.Method != options.Method {
-		return false
-	}
+func (o *Backend) CompareStoreOptions(options *Backend) bool {
+	//if o.Host != options.Host {
+	//	return false
+	//}
+	//if o.Port != options.Port {
+	//	return false
+	//}
+	//if o.Method != options.Method {
+	//	return false
+	//}
 	return true
 }

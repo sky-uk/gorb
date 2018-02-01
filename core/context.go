@@ -52,7 +52,7 @@ type service struct {
 }
 
 type backend struct {
-	options *types.BackendOptions
+	options *types.Backend
 	service *service
 	monitor *pulse.Pulse
 	metrics pulse.Metrics
@@ -198,16 +198,16 @@ func (ctx *Context) createService(vsID string, opts *types.Service) error {
 	//	log.Infof("VIP %s has been added to interface '%s'", opts.host, ifName)
 	//}
 
-	log.Infof("creating virtual service [%s] on %s:%d", vsID, opts.Host,
-		opts.Port)
+	//log.Infof("creating virtual service [%s] on %s:%d", vsID, opts.Host,
+	//	opts.Port)
 
 	// create service to external store
-	if ctx.store != nil {
-		if err := ctx.store.CreateService(vsID, opts); err != nil {
-			log.Errorf("error while create service : %s", err)
-			return err
-		}
-	}
+	//if ctx.store != nil {
+	//	if err := ctx.store.CreateService(vsID, opts); err != nil {
+	//		log.Errorf("error while create service : %s", err)
+	//		return err
+	//	}
+	//}
 
 	//var flags []string
 	//if len(opts.Flags) > 0 {
@@ -240,21 +240,21 @@ func (ctx *Context) updateService(vsID string, opts *types.Service) error {
 		return err
 	}
 
-	old, exists := ctx.services[vsID]
-	if !exists {
-		log.Infof("attempted to update a non-existent service [%s], will create instead", vsID)
-		return ctx.createService(vsID, opts)
-	}
+	//old, exists := ctx.services[vsID]
+	//if !exists {
+	//	log.Infof("attempted to update a non-existent service [%s], will create instead", vsID)
+	//	return ctx.createService(vsID, opts)
+	//}
 
 	// Check if not possible to update.
-	if old.options.Host != opts.Host ||
-		old.options.Port != opts.Port ||
-		old.options.Protocol != opts.Protocol {
-		return fmt.Errorf("unable to update virtual service [%s] due to host/port/protocol changing", vsID)
-	}
-
-	log.Infof("updating virtual service [%s] on %s:%d", vsID, opts.Host,
-		opts.Port)
+	//if old.options.Host != opts.Host ||
+	//	old.options.Port != opts.Port ||
+	//	old.options.Protocol != opts.Protocol {
+	//	return fmt.Errorf("unable to update virtual service [%s] due to host/port/protocol changing", vsID)
+	//}
+	//
+	//log.Infof("updating virtual service [%s] on %s:%d", vsID, opts.Host,
+	//	opts.Port)
 
 	// update service in external store
 	if ctx.store != nil {
@@ -290,34 +290,34 @@ func (ctx *Context) UpdateService(vsID string, opts *types.Service) error {
 }
 
 // CreateBackend registers a new backend with a virtual service.
-func (ctx *Context) createBackend(vsID, rsID string, opts *types.BackendOptions) error {
-	if err := opts.Fill(); err != nil {
-		return err
-	}
-	p, err := pulse.New(opts.Host, opts.Port, opts.Pulse)
-	if err != nil {
-		return err
-	}
+func (ctx *Context) createBackend(vsID, rsID string, opts *types.Backend) error {
+	//if err := opts.Fill(); err != nil {
+	//	return err
+	//}
+	//p, err := pulse.New(opts.Host, opts.Port, opts.Pulse)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//if _, exists := ctx.backends[rsID]; exists {
+	//	return ErrObjectExists
+	//}
+	//
+	//vs, exists := ctx.services[vsID]
+	//
+	//if !exists {
+	//	return ErrObjectNotFound
+	//}
 
-	if _, exists := ctx.backends[rsID]; exists {
-		return ErrObjectExists
-	}
-
-	vs, exists := ctx.services[vsID]
-
-	if !exists {
-		return ErrObjectNotFound
-	}
-
-	if util.AddrFamily(opts.HostIP()) != util.AddrFamily(vs.options.HostIP()) {
-		return ErrIncompatibleAFs
-	}
-
-	log.Infof("creating backend [%s] on %s:%d for virtual service [%s]",
-		rsID,
-		opts.Host,
-		opts.Port,
-		vsID)
+	//if util.AddrFamily(opts.HostIP()) != util.AddrFamily(vs.options.HostIP()) {
+	//	return ErrIncompatibleAFs
+	//}
+	//
+	//log.Infof("creating backend [%s] on %s:%d for virtual service [%s]",
+	//	rsID,
+	//	opts.Host,
+	//	opts.Port,
+	//	vsID)
 
 	// create backend to external store
 	if ctx.store != nil {
@@ -343,13 +343,13 @@ func (ctx *Context) createBackend(vsID, rsID string, opts *types.BackendOptions)
 	//ctx.backends[rsID] = &backend{options: opts, service: vs, monitor: p}
 
 	// Fire off the configured pulse goroutine, attach it to the Context.
-	go p.Loop(pulse.ID{VsID: vsID, RsID: rsID}, ctx.pulseCh, ctx.stopCh)
+	//go p.Loop(pulse.ID{VsID: vsID, RsID: rsID}, ctx.pulseCh, ctx.stopCh)
 
 	return nil
 }
 
 // CreateBackend registers a new backend with a virtual service.
-func (ctx *Context) CreateBackend(vsID, rsID string, opts *types.BackendOptions) error {
+func (ctx *Context) CreateBackend(vsID, rsID string, opts *types.Backend) error {
 	ctx.mutex.Lock()
 	defer ctx.mutex.Unlock()
 	return ctx.createBackend(vsID, rsID, opts)
@@ -479,7 +479,7 @@ func (ctx *Context) RemoveService(vsID string) (*types.Service, error) {
 }
 
 // RemoveBackend deregisters a backend.
-func (ctx *Context) removeBackend(vsID, rsID string) (*types.BackendOptions, error) {
+func (ctx *Context) removeBackend(vsID, rsID string) (*types.Backend, error) {
 	rs, exists := ctx.backends[rsID]
 
 	if !exists {
@@ -515,7 +515,7 @@ func (ctx *Context) removeBackend(vsID, rsID string) (*types.BackendOptions, err
 }
 
 // RemoveBackend deregisters a backend.
-func (ctx *Context) RemoveBackend(vsID, rsID string) (*types.BackendOptions, error) {
+func (ctx *Context) RemoveBackend(vsID, rsID string) (*types.Backend, error) {
 	ctx.mutex.Lock()
 	defer ctx.mutex.Unlock()
 	return ctx.removeBackend(vsID, rsID)
@@ -578,8 +578,8 @@ func (ctx *Context) GetService(vsID string) (*ServiceInfo, error) {
 
 // BackendInfo contains information about backend options and pulse.
 type BackendInfo struct {
-	Options *types.BackendOptions `json:"options"`
-	Metrics pulse.Metrics         `json:"metrics"`
+	Options *types.Backend `json:"options"`
+	Metrics pulse.Metrics  `json:"metrics"`
 }
 
 // GetBackend returns information about a backend.
@@ -596,7 +596,7 @@ func (ctx *Context) GetBackend(vsID, rsID string) (*BackendInfo, error) {
 	return &BackendInfo{rs.options, rs.metrics}, nil
 }
 
-//func (ctx *Context) Synchronize(storeServices map[string]*options.Service, storeBackends map[string]*options.BackendOptions) {
+//func (ctx *Context) Synchronize(storeServices map[string]*options.Service, storeBackends map[string]*options.Backend) {
 //	ctx.mutex.Lock()
 //	defer ctx.mutex.Unlock()
 //

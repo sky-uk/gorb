@@ -3,7 +3,8 @@ package core
 import (
 	"testing"
 
-	"github.com/kobolog/gorb/ipvs-shim"
+	"net"
+
 	"github.com/kobolog/gorb/types"
 	"github.com/stretchr/testify/mock"
 )
@@ -19,9 +20,9 @@ func (s *storeMock) ListServices() ([]*types.Service, error) {
 	args := s.Mock.Called()
 	return args.Get(0).([]*types.Service), args.Error(1)
 }
-func (s *storeMock) ListBackends(vsID string) ([]*types.BackendOptions, error) {
+func (s *storeMock) ListBackends(vsID string) ([]*types.Backend, error) {
 	args := s.Mock.Called(vsID)
-	return args.Get(0).([]*types.BackendOptions), args.Error(1)
+	return args.Get(0).([]*types.Backend), args.Error(1)
 }
 
 type ipvsMock struct {
@@ -34,87 +35,78 @@ func (i *ipvsMock) Init() error {
 func (i *ipvsMock) Flush() error {
 	panic("not implemented")
 }
-func (i *ipvsMock) AddService(svc *ipvs_shim.Service) error {
+func (i *ipvsMock) AddService(svc *types.Service) error {
 	args := i.Mock.Called(svc)
 	return args.Error(0)
 }
-func (i *ipvsMock) UpdateService(svc *ipvs_shim.Service) error {
+func (i *ipvsMock) UpdateService(svc *types.Service) error {
+	args := i.Mock.Called(svc)
+	return args.Error(0)
+}
+func (i *ipvsMock) DelService(key *types.ServiceKey) error {
 	panic("not implemented")
 	return nil
 }
-func (i *ipvsMock) DelService(key *ipvs_shim.ServiceKey) error {
-	panic("not implemented")
-	return nil
-}
-func (i *ipvsMock) ListServices() ([]*ipvs_shim.Service, error) {
+func (i *ipvsMock) ListServices() ([]*types.Service, error) {
 	args := i.Mock.Called()
-	return args.Get(0).([]*ipvs_shim.Service), args.Error(1)
+	return args.Get(0).([]*types.Service), args.Error(1)
 }
-func (i *ipvsMock) AddBackend(key *ipvs_shim.ServiceKey, backend *ipvs_shim.Backend) error {
+func (i *ipvsMock) AddBackend(key *types.ServiceKey, backend *types.Backend) error {
 	panic("not implemented")
 	return nil
 }
-func (i *ipvsMock) UpdateBackend(key *ipvs_shim.ServiceKey, backend *ipvs_shim.Backend) error {
+func (i *ipvsMock) UpdateBackend(key *types.ServiceKey, backend *types.Backend) error {
 	panic("not implemented")
 	return nil
 }
-func (i *ipvsMock) DelBackend(key *ipvs_shim.ServiceKey, backend *ipvs_shim.Backend) error {
+func (i *ipvsMock) DelBackend(key *types.ServiceKey, backend *types.Backend) error {
 	panic("not implemented")
 	return nil
 }
-func (i *ipvsMock) ListBackends(key *ipvs_shim.ServiceKey) ([]*ipvs_shim.Backend, error) {
+func (i *ipvsMock) ListBackends(key *types.ServiceKey) ([]*types.Backend, error) {
 	panic("not implemented")
 	return nil, nil
 }
 
 func TestReconcile(t *testing.T) {
-	storeSvc1 := &types.Service{
-		Host:     "10.10.10.1",
-		Port:     101,
-		Protocol: "tcp",
-		Method:   "sh",
-		Flags:    []string{"flag-1", "flag-2"},
-	}
-	storeSvc1u := &types.Service{
-		Host:     "10.10.10.1",
-		Port:     101,
-		Protocol: "tcp",
-		Method:   "wrr",
-		Flags:    []string{"flag-3"},
-	}
-	ipvsSvcKey1 := ipvs_shim.ServiceKey{
-		VIP:      "10.10.10.1",
+	svcKey1 := types.ServiceKey{
+		VIP:      net.ParseIP("10.10.10.1"),
 		Port:     101,
 		Protocol: "tcp",
 	}
-	ipvsSvc1 := &ipvs_shim.Service{
-		ServiceKey: ipvsSvcKey1,
+	svc1 := &types.Service{
+		ServiceKey: svcKey1,
 		Scheduler:  "sh",
 		Flags:      []string{"flag-1", "flag-2"},
 	}
-	ipvsSvc1u := &ipvs_shim.Service{
-		ServiceKey: ipvsSvcKey1,
+	svc1u := &types.Service{
+		ServiceKey: svcKey1,
 		Scheduler:  "wrr",
 		Flags:      []string{"flag-3"},
 	}
 
 	tests := []struct {
 		name            string
-		actualServices  []*ipvs_shim.Service
+		actualServices  []*types.Service
 		desiredServices []*types.Service
-		createdServices []*ipvs_shim.Service
-		updatedServices []*ipvs_shim.Service
+		createdServices []*types.Service
+		updatedServices []*types.Service
 	}{
 		{
 			name:            "add new service",
-			desiredServices: []*types.Service{storeSvc1},
-			createdServices: []*ipvs_shim.Service{ipvsSvc1},
+			desiredServices: []*types.Service{svc1},
+			createdServices: []*types.Service{svc1},
 		},
 		{
 			name:            "update service",
-			actualServices:  []*ipvs_shim.Service{ipvsSvc1},
-			desiredServices: []*types.Service{storeSvc1u},
-			updatedServices: []*ipvs_shim.Service{ipvsSvc1u},
+			actualServices:  []*types.Service{svc1},
+			desiredServices: []*types.Service{svc1u},
+			updatedServices: []*types.Service{svc1u},
+		},
+		{
+			name:            "no change in service",
+			actualServices:  []*types.Service{svc1u},
+			desiredServices: []*types.Service{svc1u},
 		},
 	}
 	for _, tt := range tests {
@@ -129,7 +121,7 @@ func TestReconcile(t *testing.T) {
 
 			// set defaults
 			if tt.actualServices == nil {
-				tt.actualServices = []*ipvs_shim.Service{}
+				tt.actualServices = []*types.Service{}
 			}
 			if tt.desiredServices == nil {
 				tt.desiredServices = []*types.Service{}

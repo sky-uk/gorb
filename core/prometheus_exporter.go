@@ -86,17 +86,17 @@ func (e *Exporter) collect() error {
 	e.ctx.mutex.RLock()
 	defer e.ctx.mutex.RUnlock()
 
-	for serviceName, _ := range e.ctx.services {
+	for serviceName := range e.ctx.services {
 		service, err := e.ctx.GetService(serviceName)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("error getting service: %s", serviceName))
 		}
 
-		serviceHealth.WithLabelValues(serviceName, service.Options.Host, fmt.Sprintf("%d", service.Options.Port),
+		serviceHealth.WithLabelValues(serviceName, service.Options.VIP.String(), fmt.Sprintf("%d", service.Options.Port),
 			service.Options.Protocol).
 			Set(service.Health)
 
-		serviceBackends.WithLabelValues(serviceName, service.Options.Host, fmt.Sprintf("%d", service.Options.Port),
+		serviceBackends.WithLabelValues(serviceName, service.Options.VIP.String(), fmt.Sprintf("%d", service.Options.Port),
 			service.Options.Protocol).
 			Set(float64(len(service.Backends)))
 
@@ -107,19 +107,19 @@ func (e *Exporter) collect() error {
 				return errors.Wrap(err, fmt.Sprintf("error getting backend %s from service %s", backendName, serviceName))
 			}
 
-			serviceBackendUptimeTotal.WithLabelValues(serviceName, backendName, backend.Options.Host,
+			serviceBackendUptimeTotal.WithLabelValues(serviceName, backendName, backend.Options.IP.String(),
 				fmt.Sprintf("%d", backend.Options.Port)).
 				Set(backend.Metrics.Uptime.Seconds())
 
-			serviceBackendHealth.WithLabelValues(serviceName, backendName, backend.Options.Host,
+			serviceBackendHealth.WithLabelValues(serviceName, backendName, backend.Options.IP.String(),
 				fmt.Sprintf("%d", backend.Options.Port)).
 				Set(backend.Metrics.Health)
 
-			serviceBackendStatus.WithLabelValues(serviceName, backendName, backend.Options.Host,
+			serviceBackendStatus.WithLabelValues(serviceName, backendName, backend.Options.IP.String(),
 				fmt.Sprintf("%d", backend.Options.Port)).
 				Set(float64(backend.Metrics.Status))
 
-			serviceBackendWeight.WithLabelValues(serviceName, backendName, backend.Options.Host,
+			serviceBackendWeight.WithLabelValues(serviceName, backendName, backend.Options.IP.String(),
 				fmt.Sprintf("%d", backend.Options.Port)).
 				Set(float64(backend.Options.Weight))
 		}

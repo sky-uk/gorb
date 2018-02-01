@@ -217,7 +217,7 @@ func newContext(ipvs ipvs_shim.IPVS, disco disco.Driver) *Context {
 //
 //func TestPulseUpdateSetsBackendWeightToZeroOnStatusDown(t *testing.T) {
 //	stash := make(map[pulse.ID]uint32)
-//	backends := map[string]*backend{rsID: {service: &virtualService, options: &BackendOptions{Weight: 100}}}
+//	backends := map[string]*backend{rsID: {service: &virtualService, options: &Backend{Weight: 100}}}
 //	mockIpvs := &fakeIpvs{}
 //
 //	c := newRoutineContext(backends, mockIpvs)
@@ -232,7 +232,7 @@ func newContext(ipvs ipvs_shim.IPVS, disco disco.Driver) *Context {
 //
 //func TestPulseUpdateIncreasesBackendWeightRelativeToTheHealthOnStatusUp(t *testing.T) {
 //	stash := map[pulse.ID]uint32{pulse.ID{VsID: vsID, RsID: rsID}: uint32(12)}
-//	backends := map[string]*backend{rsID: {service: &virtualService, options: &BackendOptions{}}}
+//	backends := map[string]*backend{rsID: {service: &virtualService, options: &Backend{}}}
 //	mockIpvs := &fakeIpvs{}
 //
 //	c := newRoutineContext(backends, mockIpvs)
@@ -247,7 +247,7 @@ func newContext(ipvs ipvs_shim.IPVS, disco disco.Driver) *Context {
 //
 //func TestPulseUpdateRemovesStashWhenBackendHasFullyRecovered(t *testing.T) {
 //	stash := map[pulse.ID]uint32{pulse.ID{VsID: vsID, RsID: rsID}: uint32(12)}
-//	backends := map[string]*backend{rsID: {service: &virtualService, options: &BackendOptions{}}}
+//	backends := map[string]*backend{rsID: {service: &virtualService, options: &Backend{}}}
 //	mockIpvs := &fakeIpvs{}
 //
 //	c := newRoutineContext(backends, mockIpvs)
@@ -273,7 +273,7 @@ func newContext(ipvs ipvs_shim.IPVS, disco disco.Driver) *Context {
 //
 //func TestPulseUpdateRemovesStashWhenDeletedAfterNotification(t *testing.T) {
 //	stash := map[pulse.ID]uint32{pulse.ID{VsID: vsID, RsID: rsID}: uint32(0)}
-//	backends := map[string]*backend{rsID: {service: &virtualService, options: &BackendOptions{}}}
+//	backends := map[string]*backend{rsID: {service: &virtualService, options: &Backend{}}}
 //	mockIpvs := &fakeIpvs{}
 //
 //	c := newRoutineContext(backends, mockIpvs)

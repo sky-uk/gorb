@@ -35,7 +35,7 @@ type reconciler struct {
 
 type reconcilerStore interface {
 	ListServices() ([]*types.Service, error)
-	ListBackends(vsID string) ([]*types.BackendOptions, error)
+	ListBackends(vsID string) ([]*types.Backend, error)
 }
 
 // New returns a reconciler that populates the ipvs state periodically and on demand.
@@ -65,56 +65,6 @@ func (r *reconciler) Sync() {
 	r.syncCh <- struct{}{}
 }
 
-func (r *reconciler) listServices() ([]*types.Service, error) {
-	ipvsSvcs, err := r.ipvs.ListServices()
-	if err != nil {
-		return nil, err
-	}
-	var svcs []*types.Service
-	for _, is := range ipvsSvcs {
-		svc := &types.Service{
-			Host:     is.VIP,
-			Port:     is.Port,
-			Protocol: is.Protocol,
-			Method:   is.Scheduler,
-			Flags:    is.Flags,
-		}
-		svcs = append(svcs, svc)
-	}
-	return svcs, nil
-}
-
-func (r *reconciler) listBackends(key *types.Service) ([]*types.BackendOptions, error) {
-	ipvsBackends, err := r.ipvs.ListBackends(nil)
-	if err != nil {
-		return nil, err
-	}
-	var backends []*types.BackendOptions
-	for _, ib := range ipvsBackends {
-		backend := &types.BackendOptions{
-			Host:   ib.IP,
-			Port:   ib.Port,
-			Method: ib.Forward,
-			Weight: ib.Weight,
-		}
-		backends = append(backends, backend)
-	}
-	return backends, nil
-}
-
-func (r *reconciler) createService(svc *types.Service) error {
-	ipvsSvc := &ipvs_shim.Service{
-		ServiceKey: ipvs_shim.ServiceKey{
-			VIP:      svc.Host,
-			Port:     svc.Port,
-			Protocol: svc.Protocol,
-		},
-		Scheduler: svc.Method,
-		Flags:     svc.Flags,
-	}
-	return r.ipvs.AddService(ipvsSvc)
-}
-
 func (r *reconciler) reconcile() {
 	desiredServices, err := r.store.ListServices()
 	if err != nil {
@@ -125,7 +75,7 @@ func (r *reconciler) reconcile() {
 		log.Infof("DESIRED SERVICE: %v", *s)
 	}
 
-	actualServices, err := r.listServices()
+	actualServices, err := r.ipvs.ListServices()
 	if err != nil {
 		log.Errorf("unable to populate: %v", err)
 		return
@@ -137,15 +87,15 @@ func (r *reconciler) reconcile() {
 	for _, desired := range desiredServices {
 		var match *types.Service
 		for _, actual := range actualServices {
-			if desired.KeyIsEqual(actual) {
+			if desired.ServiceKey.Equal(&actual.ServiceKey) {
 				match = actual
 				break
 			}
 		}
 		if match == nil {
-			r.createService(desired)
-		} else {
-			// update
+			r.ipvs.AddService(desired)
+		} else if !desired.Equal(match) {
+			r.ipvs.UpdateService(desired)
 		}
 	}
 

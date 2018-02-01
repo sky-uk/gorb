@@ -3,6 +3,8 @@ package core
 import (
 	"testing"
 
+	"net"
+
 	"github.com/kobolog/gorb/pulse"
 	"github.com/kobolog/gorb/types"
 )
@@ -13,17 +15,18 @@ func TestCollector(t *testing.T) {
 		backends: make(map[string]*backend),
 	}
 	ctx.services["service1"] = &service{options: &types.Service{
-		Host:     "localhost",
-		Port:     1234,
-		Protocol: "tcp",
-		Method:   "wlc",
+		ServiceKey: types.ServiceKey{
+			VIP:      net.ParseIP("127.0.0.1"),
+			Port:     1234,
+			Protocol: "tcp",
+		},
+		Scheduler: "wlc",
 	}}
-	ctx.backends["service1-backend1"] = &backend{options: &types.BackendOptions{
-		Host:   "localhost",
-		Port:   1234,
-		Weight: 1,
-		Method: "nat",
-		VsID:   "service1",
+	ctx.backends["service1-backend1"] = &backend{options: &types.Backend{
+		IP:      net.ParseIP("127.0.0.1"),
+		Port:    1234,
+		Weight:  1,
+		Forward: "nat",
 	}, service: ctx.services["service1"], monitor: &pulse.Pulse{}}
 	exporter := NewExporter(ctx)
 	err := exporter.collect()

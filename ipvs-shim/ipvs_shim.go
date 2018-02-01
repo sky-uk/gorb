@@ -2,11 +2,11 @@
 package ipvs_shim
 
 import (
-	"net"
 	"syscall"
 
 	"fmt"
 
+	"github.com/kobolog/gorb/types"
 	"github.com/mqliang/libipvs"
 )
 
@@ -40,33 +40,14 @@ func init() {
 type IPVS interface {
 	Init() error
 	Flush() error
-	AddService(svc *Service) error
-	UpdateService(svc *Service) error
-	DelService(key *ServiceKey) error
-	ListServices() ([]*Service, error)
-	AddBackend(key *ServiceKey, backend *Backend) error
-	UpdateBackend(key *ServiceKey, backend *Backend) error
-	DelBackend(key *ServiceKey, backend *Backend) error
-	ListBackends(key *ServiceKey) ([]*Backend, error)
-}
-
-type ServiceKey struct {
-	VIP      string
-	Port     uint16
-	Protocol string
-}
-
-type Service struct {
-	ServiceKey
-	Scheduler string
-	Flags     []string
-}
-
-type Backend struct {
-	IP      string
-	Port    uint16
-	Weight  uint32
-	Forward string
+	AddService(svc *types.Service) error
+	UpdateService(svc *types.Service) error
+	DelService(key *types.ServiceKey) error
+	ListServices() ([]*types.Service, error)
+	AddBackend(key *types.ServiceKey, backend *types.Backend) error
+	UpdateBackend(key *types.ServiceKey, backend *types.Backend) error
+	DelBackend(key *types.ServiceKey, backend *types.Backend) error
+	ListBackends(key *types.ServiceKey) ([]*types.Backend, error)
 }
 
 type shim struct {
@@ -118,13 +99,13 @@ func protocolNumber(protocol string) (uint16, error) {
 	}
 }
 
-func initIPVSService(key *ServiceKey) (*libipvs.Service, error) {
+func initIPVSService(key *types.ServiceKey) (*libipvs.Service, error) {
 	protNum, err := protocolNumber(key.Protocol)
 	if err != nil {
 		return nil, err
 	}
 	svc := &libipvs.Service{
-		Address:       net.ParseIP(key.VIP),
+		Address:       key.VIP,
 		Protocol:      libipvs.Protocol(protNum),
 		Port:          key.Port,
 		AddressFamily: syscall.AF_INET,
@@ -149,7 +130,7 @@ func createFlagbits(flags []string) (libipvs.Flags, error) {
 	return r, nil
 }
 
-func (s *shim) AddService(svc *Service) error {
+func (s *shim) AddService(svc *types.Service) error {
 	ipvsSvc, err := initIPVSService(&svc.ServiceKey)
 	if err != nil {
 		return err
@@ -162,7 +143,7 @@ func (s *shim) AddService(svc *Service) error {
 	return s.handle.NewService(ipvsSvc)
 }
 
-func (s *shim) UpdateService(svc *Service) error {
+func (s *shim) UpdateService(svc *types.Service) error {
 	ipvsSvc, err := initIPVSService(&svc.ServiceKey)
 	if err != nil {
 		return err
@@ -175,7 +156,7 @@ func (s *shim) UpdateService(svc *Service) error {
 	return s.handle.UpdateService(ipvsSvc)
 }
 
-func (s *shim) DelService(key *ServiceKey) error {
+func (s *shim) DelService(key *types.ServiceKey) error {
 	svc, err := initIPVSService(key)
 	if err != nil {
 		return err
@@ -193,17 +174,17 @@ func convertFlagbits(flagbits uint32) []string {
 	return flags
 }
 
-func (s *shim) ListServices() ([]*Service, error) {
+func (s *shim) ListServices() ([]*types.Service, error) {
 	ipvsSvcs, err := s.handle.ListServices()
 	if err != nil {
 		return nil, err
 	}
 
-	var svcs []*Service
+	var svcs []*types.Service
 	for _, isvc := range ipvsSvcs {
-		svc := &Service{
-			ServiceKey: ServiceKey{
-				VIP:      isvc.Address.String(),
+		svc := &types.Service{
+			ServiceKey: types.ServiceKey{
+				VIP:      isvc.Address,
 				Port:     isvc.Port,
 				Protocol: isvc.Protocol.String(),
 			},
@@ -217,9 +198,9 @@ func (s *shim) ListServices() ([]*Service, error) {
 	return svcs, nil
 }
 
-func createDest(backend *Backend, full bool) (*libipvs.Destination, error) {
+func createDest(backend *types.Backend, full bool) (*libipvs.Destination, error) {
 	dest := &libipvs.Destination{
-		Address:       net.ParseIP(backend.IP),
+		Address:       backend.IP,
 		Port:          backend.Port,
 		AddressFamily: syscall.AF_INET,
 	}
@@ -235,7 +216,7 @@ func createDest(backend *Backend, full bool) (*libipvs.Destination, error) {
 	return dest, nil
 }
 
-func (s *shim) AddBackend(key *ServiceKey, backend *Backend) error {
+func (s *shim) AddBackend(key *types.ServiceKey, backend *types.Backend) error {
 	svc, err := initIPVSService(key)
 	if err != nil {
 		return err
@@ -247,7 +228,7 @@ func (s *shim) AddBackend(key *ServiceKey, backend *Backend) error {
 	return s.handle.NewDestination(svc, dest)
 }
 
-func (s *shim) UpdateBackend(key *ServiceKey, backend *Backend) error {
+func (s *shim) UpdateBackend(key *types.ServiceKey, backend *types.Backend) error {
 	svc, err := initIPVSService(key)
 	if err != nil {
 		return err
@@ -259,7 +240,7 @@ func (s *shim) UpdateBackend(key *ServiceKey, backend *Backend) error {
 	return s.handle.UpdateDestination(svc, dest)
 }
 
-func (s *shim) DelBackend(key *ServiceKey, backend *Backend) error {
+func (s *shim) DelBackend(key *types.ServiceKey, backend *types.Backend) error {
 	svc, err := initIPVSService(key)
 	if err != nil {
 		return err
@@ -271,7 +252,7 @@ func (s *shim) DelBackend(key *ServiceKey, backend *Backend) error {
 	return s.handle.DelDestination(svc, dest)
 }
 
-func (s *shim) ListBackends(key *ServiceKey) ([]*Backend, error) {
+func (s *shim) ListBackends(key *types.ServiceKey) ([]*types.Backend, error) {
 	svc, err := initIPVSService(key)
 	if err != nil {
 		return nil, err
@@ -282,14 +263,14 @@ func (s *shim) ListBackends(key *ServiceKey) ([]*Backend, error) {
 		return nil, err
 	}
 
-	var backends []*Backend
+	var backends []*types.Backend
 	for _, dest := range dests {
 		fwd, ok := forwardingMethodsInverted[dest.FwdMethod]
 		if !ok {
 			return nil, fmt.Errorf("unable to list backends, unexpected forward method %#x", dest.FwdMethod)
 		}
-		backend := &Backend{
-			IP:      dest.Address.String(),
+		backend := &types.Backend{
+			IP:      dest.Address,
 			Port:    dest.Port,
 			Weight:  dest.Weight,
 			Forward: fwd,
