@@ -1,3 +1,7 @@
+.PHONY: all binary container push clean format
+
+files := $(shell find . -path ./vendor -prune -o -name '*.go' -print)
+
 all: push
 
 # 0.0 shouldn't clobber any release builds
@@ -15,3 +19,6 @@ push: container
 
 clean:
 	rm -f docker/gorb
+
+format:
+	goimports -w $(files)

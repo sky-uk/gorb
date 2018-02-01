@@ -16,3 +16,4 @@ import:
 - package: github.com/mqliang/libipvs
 - package: github.com/hkwi/nlgo
 - package: github.com/hashicorp/go-cleanhttp
+- package: github.com/deckarep/golang-set

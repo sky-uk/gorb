@@ -135,4 +135,3 @@ func TestParseIntervalErrors(t *testing.T) {
 		assert.Equal(t, test.err, err)
 	}
 }
-

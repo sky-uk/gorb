@@ -1,5 +1,5 @@
-hash: 549daa9833055ae89cd96120f2e6d11d7484196399b222b909bcbaac013f4314
-updated: 2018-01-24T14:04:18.601203437Z
+hash: eab803f573c5605c6fb3b7e7244136fb7e6924b15237d445b0811db308975db1
+updated: 2018-02-01T11:37:42.590454624Z
 imports:
 - name: github.com/beorn7/perks
   version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
@@ -22,6 +22,8 @@ imports:
   version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
   subpackages:
   - spew
+- name: github.com/deckarep/golang-set
+  version: 1d4478f51bed434f1dadf96dcd9b43aabac66795
 - name: github.com/docker/docker
   version: cbc4fd2131d06c0342a330843a02632034f1db7b
   subpackages:

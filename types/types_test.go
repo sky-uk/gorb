@@ -1,4 +1,4 @@
-package options
+package types
 
 import (
 	"testing"
@@ -7,21 +7,21 @@ import (
 )
 
 func TestValidateAcceptsAllowedServiceOptionsFlags(t *testing.T) {
-	options := ServiceOptions{Port: 80, Host: "localhost", Protocol: "tcp", Method: "dr", Flags: "sh-port|sh-fallback"}
+	options := Service{Port: 80, Host: "localhost", Protocol: "tcp", Method: "dr", Flags: "sh-port|sh-fallback"}
 	err := options.Fill(nil)
 
 	assert.NoError(t, err)
 }
 
 func TestValidateRejectsInvalidServiceOptionsFlags(t *testing.T) {
-	options := ServiceOptions{Port: 80, Host: "localhost", Protocol: "tcp", Method: "dr", Flags: "sh-port|does-not-match"}
+	options := Service{Port: 80, Host: "localhost", Protocol: "tcp", Method: "dr", Flags: "sh-port|does-not-match"}
 	err := options.Fill(nil)
 
 	assert.EqualError(t, err, "specified flag is unknown")
 }
 
 func TestValidateAcceptsNoFlags(t *testing.T) {
-	options := ServiceOptions{Port: 80, Host: "localhost", Protocol: "tcp", Method: "dr"}
+	options := Service{Port: 80, Host: "localhost", Protocol: "tcp", Method: "dr"}
 	err := options.Fill(nil)
 
 	assert.NoError(t, err)

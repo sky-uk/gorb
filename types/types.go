@@ -18,13 +18,14 @@
    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-package options
+package types
 
 import (
 	"errors"
 	"net"
 	"strings"
 
+	"github.com/deckarep/golang-set"
 	"github.com/kobolog/gorb/ipvs-shim"
 	"github.com/kobolog/gorb/pulse"
 )
@@ -37,28 +38,29 @@ var (
 	ErrUnknownFlag     = errors.New("specified flag is unknown")
 )
 
-// ServiceOptions describe a virtual service.
-type ServiceOptions struct {
-	Host     string `json:"host"`
-	Port     uint16 `json:"port"`
-	Protocol string `json:"protocol"`
-	Method   string `json:"method"`
-	// todo: use a list of flags
-	Flags string `json:"flags"`
-	// todo: This appears unused. Implement or remove it.
-	Persistent bool `json:"persistent"`
-
-	// Host string resolved to an IP, including DNS lookup.
-	//host      net.IP
-	//delIfAddr bool
+// Service describes a virtual service.
+type Service struct {
+	Host     string   `json:"host"`
+	Port     uint16   `json:"port"`
+	Protocol string   `json:"protocol"`
+	Method   string   `json:"method"`
+	Flags    []string `json:"flags"`
 }
 
-func (o *ServiceOptions) HostIP() net.IP {
+func (o *Service) HostIP() net.IP {
 	return net.ParseIP(o.Host)
 }
 
+func (o *Service) Flagset() mapset.Set {
+	s := mapset.NewThreadUnsafeSet()
+	for _, f := range o.Flags {
+		s.Add(&f)
+	}
+	return s
+}
+
 // Fill missing fields and validates virtual service configuration.
-func (o *ServiceOptions) Fill(defaultHost net.IP) error {
+func (o *Service) Fill(defaultHost net.IP) error {
 	if o.Port == 0 {
 		return ErrMissingEndpoint
 	}
@@ -84,8 +86,8 @@ func (o *ServiceOptions) Fill(defaultHost net.IP) error {
 		return ErrUnknownProtocol
 	}
 
-	if o.Flags != "" {
-		for _, flag := range strings.Split(o.Flags, "|") {
+	if len(o.Flags) != 0 {
+		for _, flag := range o.Flags {
 			if ok := ipvs_shim.ValidFlag(flag); !ok {
 				return ErrUnknownFlag
 			}
@@ -100,7 +102,7 @@ func (o *ServiceOptions) Fill(defaultHost net.IP) error {
 	return nil
 }
 
-func (o *ServiceOptions) CompareStoreOptions(options *ServiceOptions) bool {
+func (o *Service) KeyIsEqual(options *Service) bool {
 	if o.Host != options.Host {
 		return false
 	}
@@ -110,13 +112,23 @@ func (o *ServiceOptions) CompareStoreOptions(options *ServiceOptions) bool {
 	if o.Protocol != options.Protocol {
 		return false
 	}
-	if o.Flags != options.Flags {
+	return true
+}
+
+func (o *Service) IsEqual(other *Service) bool {
+	if o.Host != other.Host {
 		return false
 	}
-	if o.Method != options.Method {
+	if o.Port != other.Port {
 		return false
 	}
-	if o.Persistent != options.Persistent {
+	if o.Protocol != other.Protocol {
+		return false
+	}
+	if o.Flagset().Equal(other.Flagset()) {
+		return false
+	}
+	if o.Method != other.Method {
 		return false
 	}
 	return true

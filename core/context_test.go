@@ -90,11 +90,11 @@ func newContext(ipvs ipvs_shim.IPVS, disco disco.Driver) *Context {
 //var (
 //	vsID           = "virtualServiceId"
 //	rsID           = "realServerID"
-//	virtualService = service{options: &ServiceOptions{Port: 80, Host: "localhost", Protocol: "tcp"}}
+//	virtualService = service{options: &Service{Port: 80, Host: "localhost", Protocol: "tcp"}}
 //)
 //
 //func TestServiceIsCreated(t *testing.T) {
-//	options := &ServiceOptions{Port: 80, Host: "localhost", Protocol: "tcp", Method: "sh"}
+//	options := &Service{Port: 80, Host: "localhost", Protocol: "tcp", Method: "sh"}
 //	mockIpvs := &fakeIpvs{}
 //	mockDisco := &fakeDisco{}
 //	c := newContext(mockIpvs, mockDisco)
@@ -109,7 +109,7 @@ func newContext(ipvs ipvs_shim.IPVS, disco disco.Driver) *Context {
 //}
 //
 //func TestServiceIsCreatedWithShFlags(t *testing.T) {
-//	options := &ServiceOptions{Port: 80, Host: "localhost", Protocol: "tcp", Method: "sh", Flags: "sh-port|sh-fallback"}
+//	options := &Service{Port: 80, Host: "localhost", Protocol: "tcp", Method: "sh", Flags: "sh-port|sh-fallback"}
 //	mockIpvs := &fakeIpvs{}
 //	mockDisco := &fakeDisco{}
 //	c := newContext(mockIpvs, mockDisco)
@@ -125,7 +125,7 @@ func newContext(ipvs ipvs_shim.IPVS, disco disco.Driver) *Context {
 //}
 //
 //func TestServiceIsCreatedWithGenericCustomFlags(t *testing.T) {
-//	options := &ServiceOptions{Port: 80, Host: "localhost", Protocol: "tcp", Method: "sh", Flags: "flag-1|flag-2|flag-3"}
+//	options := &Service{Port: 80, Host: "localhost", Protocol: "tcp", Method: "sh", Flags: "flag-1|flag-2|flag-3"}
 //	mockIpvs := &fakeIpvs{}
 //	mockDisco := &fakeDisco{}
 //	c := newContext(mockIpvs, mockDisco)
@@ -141,8 +141,8 @@ func newContext(ipvs ipvs_shim.IPVS, disco disco.Driver) *Context {
 //}
 //
 //func TestServiceIsUpdated(t *testing.T) {
-//	options := &ServiceOptions{Port: 80, Host: "localhost", Protocol: "tcp", Method: "sh", Flags: "flag-1"}
-//	updatedOptions := &ServiceOptions{Port: 80, Host: "127.0.0.1", Protocol: "tcp", Method: "rr", Flags: "flag-2"}
+//	options := &Service{Port: 80, Host: "localhost", Protocol: "tcp", Method: "sh", Flags: "flag-1"}
+//	updatedOptions := &Service{Port: 80, Host: "127.0.0.1", Protocol: "tcp", Method: "rr", Flags: "flag-2"}
 //	mockIpvs := &fakeIpvs{}
 //	mockDisco := &fakeDisco{}
 //	c := newContext(mockIpvs, mockDisco)
@@ -163,24 +163,24 @@ func newContext(ipvs ipvs_shim.IPVS, disco disco.Driver) *Context {
 //func TestCannotUpdateServiceIfHostPortProtocolChange(t *testing.T) {
 //	tests := []struct {
 //		name    string
-//		updated *ServiceOptions
+//		updated *Service
 //	}{
 //		{
 //			"host changed",
-//			&ServiceOptions{Port: 80, Host: "8.8.8.8", Protocol: "tcp", Method: "sh", Flags: "flag-1"},
+//			&Service{Port: 80, Host: "8.8.8.8", Protocol: "tcp", Method: "sh", Flags: "flag-1"},
 //		},
 //		{
 //			"port changed",
-//			&ServiceOptions{Port: 99, Host: "127.0.0.1", Protocol: "tcp", Method: "sh", Flags: "flag-1"},
+//			&Service{Port: 99, Host: "127.0.0.1", Protocol: "tcp", Method: "sh", Flags: "flag-1"},
 //		},
 //		{
 //			"protocol changed",
-//			&ServiceOptions{Port: 80, Host: "127.0.0.1", Protocol: "udp", Method: "sh", Flags: "flag-1"},
+//			&Service{Port: 80, Host: "127.0.0.1", Protocol: "udp", Method: "sh", Flags: "flag-1"},
 //		},
 //	}
 //	for _, tt := range tests {
 //		t.Run(tt.name, func(t *testing.T) {
-//			options := &ServiceOptions{Port: 80, Host: "127.0.0.1", Protocol: "tcp", Method: "sh", Flags: "flag-1"}
+//			options := &Service{Port: 80, Host: "127.0.0.1", Protocol: "tcp", Method: "sh", Flags: "flag-1"}
 //			mockIpvs := &fakeIpvs{}
 //			mockDisco := &fakeDisco{}
 //			c := newContext(mockIpvs, mockDisco)
@@ -201,7 +201,7 @@ func newContext(ipvs ipvs_shim.IPVS, disco disco.Driver) *Context {
 //}
 //
 //func TestServiceIsCreatedIfDoesntExist(t *testing.T) {
-//	options := &ServiceOptions{Port: 80, Host: "localhost", Protocol: "tcp", Method: "sh"}
+//	options := &Service{Port: 80, Host: "localhost", Protocol: "tcp", Method: "sh"}
 //	mockIpvs := &fakeIpvs{}
 //	mockDisco := &fakeDisco{}
 //	c := newContext(mockIpvs, mockDisco)

@@ -8,9 +8,9 @@ import (
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 	libkvmock "github.com/docker/libkv/store/mock"
+	"github.com/kobolog/gorb/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/kobolog/gorb/core"
 )
 
 type storeMock struct {

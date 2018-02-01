@@ -35,8 +35,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/kobolog/gorb/ipvs-shim"
-	"github.com/kobolog/gorb/options"
 	"github.com/kobolog/gorb/store"
+	"github.com/kobolog/gorb/types"
 )
 
 // Possible runtime errors.
@@ -48,11 +48,11 @@ var (
 )
 
 type service struct {
-	options *options.ServiceOptions
+	options *types.Service
 }
 
 type backend struct {
-	options *options.BackendOptions
+	options *types.BackendOptions
 	service *service
 	monitor *pulse.Pulse
 	metrics pulse.Metrics
@@ -175,7 +175,7 @@ func (ctx *Context) Close() {
 }
 
 // CreateService registers a new virtual service with IPVS.
-func (ctx *Context) createService(vsID string, opts *options.ServiceOptions) error {
+func (ctx *Context) createService(vsID string, opts *types.Service) error {
 	if err := opts.Fill(ctx.endpoint); err != nil {
 		return err
 	}
@@ -228,14 +228,14 @@ func (ctx *Context) createService(vsID string, opts *options.ServiceOptions) err
 }
 
 // CreateService registers a new virtual service with IPVS.
-func (ctx *Context) CreateService(vsID string, opts *options.ServiceOptions) error {
+func (ctx *Context) CreateService(vsID string, opts *types.Service) error {
 	ctx.mutex.Lock()
 	defer ctx.mutex.Unlock()
 	return ctx.createService(vsID, opts)
 }
 
 // updateService updates a virtual service in IPVS.
-func (ctx *Context) updateService(vsID string, opts *options.ServiceOptions) error {
+func (ctx *Context) updateService(vsID string, opts *types.Service) error {
 	if err := opts.Fill(ctx.endpoint); err != nil {
 		return err
 	}
@@ -283,14 +283,14 @@ func (ctx *Context) updateService(vsID string, opts *options.ServiceOptions) err
 }
 
 // CreateService registers a new virtual service with IPVS.
-func (ctx *Context) UpdateService(vsID string, opts *options.ServiceOptions) error {
+func (ctx *Context) UpdateService(vsID string, opts *types.Service) error {
 	ctx.mutex.Lock()
 	defer ctx.mutex.Unlock()
 	return ctx.updateService(vsID, opts)
 }
 
 // CreateBackend registers a new backend with a virtual service.
-func (ctx *Context) createBackend(vsID, rsID string, opts *options.BackendOptions) error {
+func (ctx *Context) createBackend(vsID, rsID string, opts *types.BackendOptions) error {
 	if err := opts.Fill(); err != nil {
 		return err
 	}
@@ -349,7 +349,7 @@ func (ctx *Context) createBackend(vsID, rsID string, opts *options.BackendOption
 }
 
 // CreateBackend registers a new backend with a virtual service.
-func (ctx *Context) CreateBackend(vsID, rsID string, opts *options.BackendOptions) error {
+func (ctx *Context) CreateBackend(vsID, rsID string, opts *types.BackendOptions) error {
 	ctx.mutex.Lock()
 	defer ctx.mutex.Unlock()
 	return ctx.createBackend(vsID, rsID, opts)
@@ -404,7 +404,7 @@ func (ctx *Context) UpdateBackend(vsID, rsID string, weight uint32) (uint32, err
 }
 
 // RemoveService deregisters a virtual service.
-func (ctx *Context) removeService(vsID string) (*options.ServiceOptions, error) {
+func (ctx *Context) removeService(vsID string) (*types.Service, error) {
 	vs, exists := ctx.services[vsID]
 
 	if !exists {
@@ -472,14 +472,14 @@ func (ctx *Context) removeService(vsID string) (*options.ServiceOptions, error) 
 }
 
 // RemoveService deregisters a virtual service.
-func (ctx *Context) RemoveService(vsID string) (*options.ServiceOptions, error) {
+func (ctx *Context) RemoveService(vsID string) (*types.Service, error) {
 	ctx.mutex.Lock()
 	defer ctx.mutex.Unlock()
 	return ctx.removeService(vsID)
 }
 
 // RemoveBackend deregisters a backend.
-func (ctx *Context) removeBackend(vsID, rsID string) (*options.BackendOptions, error) {
+func (ctx *Context) removeBackend(vsID, rsID string) (*types.BackendOptions, error) {
 	rs, exists := ctx.backends[rsID]
 
 	if !exists {
@@ -515,7 +515,7 @@ func (ctx *Context) removeBackend(vsID, rsID string) (*options.BackendOptions, e
 }
 
 // RemoveBackend deregisters a backend.
-func (ctx *Context) RemoveBackend(vsID, rsID string) (*options.BackendOptions, error) {
+func (ctx *Context) RemoveBackend(vsID, rsID string) (*types.BackendOptions, error) {
 	ctx.mutex.Lock()
 	defer ctx.mutex.Unlock()
 	return ctx.removeBackend(vsID, rsID)
@@ -538,9 +538,9 @@ func (ctx *Context) ListServices() ([]string, error) {
 // ServiceInfo contains information about virtual service options,
 // its backends and overall virtual service health.
 type ServiceInfo struct {
-	Options  *options.ServiceOptions `json:"options"`
-	Health   float64                 `json:"health"`
-	Backends []string                `json:"backends"`
+	Options  *types.Service `json:"options"`
+	Health   float64        `json:"health"`
+	Backends []string       `json:"backends"`
 }
 
 // GetService returns information about a virtual service.
@@ -578,8 +578,8 @@ func (ctx *Context) GetService(vsID string) (*ServiceInfo, error) {
 
 // BackendInfo contains information about backend options and pulse.
 type BackendInfo struct {
-	Options *options.BackendOptions `json:"options"`
-	Metrics pulse.Metrics           `json:"metrics"`
+	Options *types.BackendOptions `json:"options"`
+	Metrics pulse.Metrics         `json:"metrics"`
 }
 
 // GetBackend returns information about a backend.
@@ -596,7 +596,7 @@ func (ctx *Context) GetBackend(vsID, rsID string) (*BackendInfo, error) {
 	return &BackendInfo{rs.options, rs.metrics}, nil
 }
 
-//func (ctx *Context) Synchronize(storeServices map[string]*options.ServiceOptions, storeBackends map[string]*options.BackendOptions) {
+//func (ctx *Context) Synchronize(storeServices map[string]*options.Service, storeBackends map[string]*options.BackendOptions) {
 //	ctx.mutex.Lock()
 //	defer ctx.mutex.Unlock()
 //
