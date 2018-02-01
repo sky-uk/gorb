@@ -43,9 +43,9 @@ func (i *ipvsMock) UpdateService(svc *types.Service) error {
 	args := i.Mock.Called(svc)
 	return args.Error(0)
 }
-func (i *ipvsMock) DelService(key *types.ServiceKey) error {
-	panic("not implemented")
-	return nil
+func (i *ipvsMock) DeleteService(key *types.ServiceKey) error {
+	args := i.Mock.Called(key)
+	return args.Error(0)
 }
 func (i *ipvsMock) ListServices() ([]*types.Service, error) {
 	args := i.Mock.Called()
@@ -59,7 +59,7 @@ func (i *ipvsMock) UpdateBackend(key *types.ServiceKey, backend *types.Backend) 
 	panic("not implemented")
 	return nil
 }
-func (i *ipvsMock) DelBackend(key *types.ServiceKey, backend *types.Backend) error {
+func (i *ipvsMock) DeleteBackend(key *types.ServiceKey, backend *types.Backend) error {
 	panic("not implemented")
 	return nil
 }
@@ -84,6 +84,16 @@ func TestReconcile(t *testing.T) {
 		Scheduler:  "wrr",
 		Flags:      []string{"flag-3"},
 	}
+	svcKey2 := types.ServiceKey{
+		VIP:      net.ParseIP("10.10.10.2"),
+		Port:     102,
+		Protocol: "udp",
+	}
+	svc2 := &types.Service{
+		ServiceKey: svcKey2,
+		Scheduler:  "rr",
+		Flags:      []string{"flag-1"},
+	}
 
 	tests := []struct {
 		name            string
@@ -91,22 +101,30 @@ func TestReconcile(t *testing.T) {
 		desiredServices []*types.Service
 		createdServices []*types.Service
 		updatedServices []*types.Service
+		deletedServices []*types.Service
 	}{
 		{
 			name:            "add new service",
-			desiredServices: []*types.Service{svc1},
+			actualServices:  []*types.Service{svc2},
+			desiredServices: []*types.Service{svc1, svc2},
 			createdServices: []*types.Service{svc1},
 		},
 		{
 			name:            "update service",
-			actualServices:  []*types.Service{svc1},
-			desiredServices: []*types.Service{svc1u},
+			actualServices:  []*types.Service{svc1, svc2},
+			desiredServices: []*types.Service{svc1u, svc2},
 			updatedServices: []*types.Service{svc1u},
 		},
 		{
 			name:            "no change in service",
-			actualServices:  []*types.Service{svc1u},
-			desiredServices: []*types.Service{svc1u},
+			actualServices:  []*types.Service{svc1u, svc2},
+			desiredServices: []*types.Service{svc1u, svc2},
+		},
+		{
+			name:            "delete service",
+			actualServices:  []*types.Service{svc1, svc2},
+			desiredServices: []*types.Service{svc1},
+			deletedServices: []*types.Service{svc2},
 		},
 	}
 	for _, tt := range tests {
@@ -135,6 +153,9 @@ func TestReconcile(t *testing.T) {
 			}
 			for _, s := range tt.updatedServices {
 				ipvsMock.On("UpdateService", s).Return(nil)
+			}
+			for _, s := range tt.deletedServices {
+				ipvsMock.On("DeleteService", &s.ServiceKey).Return(nil)
 			}
 
 			// reconcile

@@ -99,6 +99,19 @@ func (r *reconciler) reconcile() {
 		}
 	}
 
+	for _, actual := range actualServices {
+		var found bool
+		for _, desired := range desiredServices {
+			if actual.ServiceKey.Equal(&desired.ServiceKey) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			r.ipvs.DeleteService(&actual.ServiceKey)
+		}
+	}
+
 	//desiredBackends, err := r.store.ListBackends("fixme")
 	//if err != nil {
 	//	log.Errorf("unable to populate: %v", err)

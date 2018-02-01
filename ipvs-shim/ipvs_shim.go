@@ -42,11 +42,11 @@ type IPVS interface {
 	Flush() error
 	AddService(svc *types.Service) error
 	UpdateService(svc *types.Service) error
-	DelService(key *types.ServiceKey) error
+	DeleteService(key *types.ServiceKey) error
 	ListServices() ([]*types.Service, error)
 	AddBackend(key *types.ServiceKey, backend *types.Backend) error
 	UpdateBackend(key *types.ServiceKey, backend *types.Backend) error
-	DelBackend(key *types.ServiceKey, backend *types.Backend) error
+	DeleteBackend(key *types.ServiceKey, backend *types.Backend) error
 	ListBackends(key *types.ServiceKey) ([]*types.Backend, error)
 }
 
@@ -156,7 +156,7 @@ func (s *shim) UpdateService(svc *types.Service) error {
 	return s.handle.UpdateService(ipvsSvc)
 }
 
-func (s *shim) DelService(key *types.ServiceKey) error {
+func (s *shim) DeleteService(key *types.ServiceKey) error {
 	svc, err := initIPVSService(key)
 	if err != nil {
 		return err
@@ -240,7 +240,7 @@ func (s *shim) UpdateBackend(key *types.ServiceKey, backend *types.Backend) erro
 	return s.handle.UpdateDestination(svc, dest)
 }
 
-func (s *shim) DelBackend(key *types.ServiceKey, backend *types.Backend) error {
+func (s *shim) DeleteBackend(key *types.ServiceKey, backend *types.Backend) error {
 	svc, err := initIPVSService(key)
 	if err != nil {
 		return err
