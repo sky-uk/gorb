@@ -75,6 +75,13 @@ func TestReconcile(t *testing.T) {
 		Method:   "sh",
 		Flags:    []string{"flag-1", "flag-2"},
 	}
+	storeSvc1u := &types.Service{
+		Host:     "10.10.10.1",
+		Port:     101,
+		Protocol: "tcp",
+		Method:   "wrr",
+		Flags:    []string{"flag-3"},
+	}
 	ipvsSvcKey1 := ipvs_shim.ServiceKey{
 		VIP:      "10.10.10.1",
 		Port:     101,
@@ -85,18 +92,29 @@ func TestReconcile(t *testing.T) {
 		Scheduler:  "sh",
 		Flags:      []string{"flag-1", "flag-2"},
 	}
+	ipvsSvc1u := &ipvs_shim.Service{
+		ServiceKey: ipvsSvcKey1,
+		Scheduler:  "wrr",
+		Flags:      []string{"flag-3"},
+	}
 
 	tests := []struct {
 		name            string
 		actualServices  []*ipvs_shim.Service
 		desiredServices []*types.Service
 		createdServices []*ipvs_shim.Service
+		updatedServices []*ipvs_shim.Service
 	}{
 		{
 			name:            "add new service",
-			actualServices:  []*ipvs_shim.Service{},
 			desiredServices: []*types.Service{storeSvc1},
 			createdServices: []*ipvs_shim.Service{ipvsSvc1},
+		},
+		{
+			name:            "update service",
+			actualServices:  []*ipvs_shim.Service{ipvsSvc1},
+			desiredServices: []*types.Service{storeSvc1u},
+			updatedServices: []*ipvs_shim.Service{ipvsSvc1u},
 		},
 	}
 	for _, tt := range tests {
@@ -109,14 +127,28 @@ func TestReconcile(t *testing.T) {
 				ipvs:  ipvsMock,
 			}
 
+			// set defaults
+			if tt.actualServices == nil {
+				tt.actualServices = []*ipvs_shim.Service{}
+			}
+			if tt.desiredServices == nil {
+				tt.desiredServices = []*types.Service{}
+			}
+
+			// add expectations for store and ipvs
 			ipvsMock.On("ListServices").Return(tt.actualServices, nil)
 			storeMock.On("ListServices").Return(tt.desiredServices, nil)
 			for _, s := range tt.createdServices {
 				ipvsMock.On("AddService", s).Return(nil)
 			}
+			for _, s := range tt.updatedServices {
+				ipvsMock.On("UpdateService", s).Return(nil)
+			}
 
+			// reconcile
 			r.reconcile()
 
+			// ensure expected outcomes
 			storeMock.AssertExpectations(t)
 			ipvsMock.AssertExpectations(t)
 		})

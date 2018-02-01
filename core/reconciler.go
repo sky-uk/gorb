@@ -66,7 +66,6 @@ func (r *reconciler) Sync() {
 }
 
 func (r *reconciler) listServices() ([]*types.Service, error) {
-	log.Info("LISTING IPVS SERVICES")
 	ipvsSvcs, err := r.ipvs.ListServices()
 	if err != nil {
 		return nil, err
@@ -117,20 +116,23 @@ func (r *reconciler) createService(svc *types.Service) error {
 }
 
 func (r *reconciler) reconcile() {
-	log.Info("LISTING STORE SERVICES")
 	desiredServices, err := r.store.ListServices()
 	if err != nil {
 		log.Errorf("unable to populate: %v", err)
 		return
 	}
-	log.Infof("DESIRED SERVICES: %v", desiredServices)
+	for _, s := range desiredServices {
+		log.Infof("DESIRED SERVICE: %v", *s)
+	}
 
 	actualServices, err := r.listServices()
 	if err != nil {
 		log.Errorf("unable to populate: %v", err)
 		return
 	}
-	log.Infof("ACTUAL SERVICES: %v", actualServices)
+	for _, s := range actualServices {
+		log.Infof("ACTUAL SERVICE: %v", *s)
+	}
 
 	for _, desired := range desiredServices {
 		var match *types.Service
