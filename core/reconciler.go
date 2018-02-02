@@ -117,7 +117,7 @@ func (r *reconciler) reconcile() {
 			if match == nil {
 				r.ipvs.AddBackend(&desired.ServiceKey, desiredBackend)
 			} else if !desiredBackend.Equal(match) {
-				// update
+				r.ipvs.UpdateBackend(&desired.ServiceKey, desiredBackend)
 			}
 		}
 	}

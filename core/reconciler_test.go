@@ -56,8 +56,8 @@ func (i *ipvsMock) AddBackend(key *types.ServiceKey, backend *types.Backend) err
 	return args.Error(0)
 }
 func (i *ipvsMock) UpdateBackend(key *types.ServiceKey, backend *types.Backend) error {
-	panic("not implemented")
-	return nil
+	args := i.Mock.Called(key, backend)
+	return args.Error(0)
 }
 func (i *ipvsMock) DeleteBackend(key *types.ServiceKey, backend *types.Backend) error {
 	panic("not implemented")
@@ -103,6 +103,12 @@ func TestReconcile(t *testing.T) {
 		Weight:  1.0,
 		Forward: "dr",
 	}
+	backend1u := &types.Backend{
+		IP:      net.ParseIP("172.16.1.1"),
+		Port:    501,
+		Weight:  0.0,
+		Forward: "dr",
+	}
 	backend2 := &types.Backend{
 		IP:      net.ParseIP("172.16.1.2"),
 		Port:    502,
@@ -126,6 +132,8 @@ func TestReconcile(t *testing.T) {
 		actualBackends  keyToBackends
 		desiredBackends keyToBackends
 		createdBackends keyToBackends
+		updatedBackends keyToBackends
+		deletedBackends keyToBackends
 	}{
 		{
 			name:            "add new service",
@@ -154,8 +162,17 @@ func TestReconcile(t *testing.T) {
 			name:            "add backend",
 			actualServices:  []*types.Service{svc1},
 			desiredServices: []*types.Service{svc1},
+			actualBackends:  keyToBackends{svc1: {backend2}},
 			desiredBackends: keyToBackends{svc1: {backend1, backend2}},
-			createdBackends: keyToBackends{svc1: {backend1, backend2}},
+			createdBackends: keyToBackends{svc1: {backend1}},
+		},
+		{
+			name:            "update backend",
+			actualServices:  []*types.Service{svc1},
+			desiredServices: []*types.Service{svc1},
+			actualBackends:  keyToBackends{svc1: {backend1, backend2}},
+			desiredBackends: keyToBackends{svc1: {backend1u, backend2}},
+			updatedBackends: keyToBackends{svc1: {backend1u}},
 		},
 	}
 	for _, tt := range tests {
@@ -213,6 +230,11 @@ func TestReconcile(t *testing.T) {
 			for k, v := range tt.createdBackends {
 				for _, backend := range v {
 					ipvsMock.On("AddBackend", &k.ServiceKey, backend).Return(nil)
+				}
+			}
+			for k, v := range tt.updatedBackends {
+				for _, backend := range v {
+					ipvsMock.On("UpdateBackend", &k.ServiceKey, backend).Return(nil)
 				}
 			}
 
