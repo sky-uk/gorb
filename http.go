@@ -27,11 +27,27 @@ import (
 	"github.com/kobolog/gorb/core"
 	"github.com/kobolog/gorb/util"
 
+	"errors"
+	"net"
+	"strings"
+
+	"github.com/containous/traefik/log"
 	"github.com/gorilla/mux"
+	"github.com/kobolog/gorb/types"
 )
+
+var badRequest = errors.New("malformed request")
 
 type errorResponse struct {
 	Error string `json:"error"`
+}
+
+type serviceRequest struct {
+	Host      string `json:"host"`
+	Port      uint16 `json:"port"`
+	Protocol  string `json:"protocol"`
+	Scheduler string `json:"scheduler"`
+	Flags     string `json:"flags"`
 }
 
 func writeJSON(w http.ResponseWriter, obj interface{}) {
@@ -43,19 +59,38 @@ func writeError(w http.ResponseWriter, err error) {
 	var code int
 
 	switch err {
-	case core.ErrIpvsSyscallFailed:
-		code = http.StatusInternalServerError
+	case badRequest:
+		code = http.StatusBadRequest
 	case core.ErrObjectExists:
 		code = http.StatusConflict
 	case core.ErrObjectNotFound:
 		code = http.StatusNotFound
 	default:
-		code = http.StatusBadRequest
+		code = http.StatusInternalServerError
 	}
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(code)
 	w.Write(util.MustMarshal(&errorResponse{err.Error()}, util.JSONOptions{Indent: true}))
+}
+
+func fillInService(svc *types.Service, vars map[string]string, req serviceRequest) error {
+	svc.StoreID = vars["vsID"]
+	if len(svc.StoreID) == 0 {
+		log.Warnf("vsID is required, but was empty")
+		return badRequest
+	}
+	vip, err := net.LookupIP(req.Host)
+	if err != nil {
+		log.Warnf("invalid host %q: %v", req.Host, err)
+		return badRequest
+	}
+	svc.VIP = vip[0]
+	svc.Port = req.Port
+	svc.Protocol = req.Protocol
+	svc.Scheduler = req.Scheduler
+	svc.Flags = strings.Split(req.Flags, "|")
+	return nil
 }
 
 type serviceCreateHandler struct {
@@ -64,13 +99,20 @@ type serviceCreateHandler struct {
 
 func (h serviceCreateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var (
-		opts core.ServiceOptions
+		req  serviceRequest
+		svc  types.Service
 		vars = mux.Vars(r)
 	)
 
-	if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, err)
-	} else if err := h.ctx.CreateService(vars["vsID"], &opts); err != nil {
+	}
+
+	if err := fillInService(&svc, vars, req); err != nil {
+		writeError(w, err)
+	}
+
+	if err := h.ctx.CreateService(&svc); err != nil {
 		writeError(w, err)
 	}
 }
@@ -81,13 +123,20 @@ type serviceUpdateHandler struct {
 
 func (h serviceUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var (
-		opts core.ServiceOptions
+		req  serviceRequest
+		svc  types.Service
 		vars = mux.Vars(r)
 	)
 
-	if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, err)
-	} else if err := h.ctx.UpdateService(vars["vsID"], &opts); err != nil {
+	}
+
+	if err := fillInService(&svc, vars, req); err != nil {
+		writeError(w, err)
+	}
+
+	if err := h.ctx.UpdateService(&svc); err != nil {
 		writeError(w, err)
 	}
 }

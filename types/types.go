@@ -21,7 +21,6 @@
 package types
 
 import (
-	"errors"
 	"net"
 
 	"fmt"
@@ -29,14 +28,6 @@ import (
 
 	"github.com/deckarep/golang-set"
 	"github.com/kobolog/gorb/pulse"
-)
-
-// Possible validation errors.
-var (
-	ErrMissingEndpoint = errors.New("endpoint information is missing")
-	ErrUnknownMethod   = errors.New("specified forwarding method is unknown")
-	ErrUnknownProtocol = errors.New("specified protocol is unknown")
-	ErrUnknownFlag     = errors.New("specified flag is unknown")
 )
 
 type ServiceKey struct {
@@ -69,49 +60,6 @@ func (s *Service) Flagset() mapset.Set {
 		fs.Add(f)
 	}
 	return fs
-}
-
-// Fill missing fields and validates virtual service configuration.
-func (s *Service) Fill(defaultHost net.IP) error {
-	//if o.Port == 0 {
-	//	return ErrMissingEndpoint
-	//}
-
-	//if len(o.Host) != 0 {
-	//	if addr, err := net.ResolveIPAddr("ip", o.Host); err == nil {
-	//		o.Host = addr.IP.String()
-	//	} else {
-	//		return err
-	//	}
-	//} else if defaultHost != nil {
-	//	o.Host = defaultHost.String()
-	//} else {
-	//	return ErrMissingEndpoint
-	//}
-
-	//if len(o.Protocol) == 0 {
-	//	o.Protocol = "tcp"
-	//}
-	//
-	//o.Protocol = strings.ToLower(o.Protocol)
-	//if !ipvs_shim.ValidProtocol(o.Protocol) {
-	//	return ErrUnknownProtocol
-	//}
-	//
-	//if len(o.Flags) != 0 {
-	//	for _, flag := range o.Flags {
-	//		if ok := ipvs_shim.ValidFlag(flag); !ok {
-	//			return ErrUnknownFlag
-	//		}
-	//	}
-	//}
-	//
-	//if len(o.Scheduler) == 0 {
-	//	// WRR since Pulse will dynamically reweight backends.
-	//	o.Scheduler = "wrr"
-	//}
-
-	return nil
 }
 
 func (s *ServiceKey) Equal(other ServiceKey) bool {
@@ -148,50 +96,4 @@ func (b *BackendKey) Equal(o BackendKey) bool {
 
 func (b *Backend) Equal(o *Backend) bool {
 	return b.BackendKey.Equal(o.BackendKey) && b.Weight == o.Weight && b.Forward == o.Forward
-}
-
-// Fill missing fields and validates backend configuration.
-func (b *Backend) Fill() error {
-	//if len(o.Host) == 0 || o.Port == 0 {
-	//	return ErrMissingEndpoint
-	//}
-	//
-	//if addr, err := net.ResolveIPAddr("ip", o.Host); err == nil {
-	//	o.Host = addr.IP.String()
-	//} else {
-	//	return err
-	//}
-	//
-	//if o.Weight <= 0 {
-	//	o.Weight = 100
-	//}
-	//
-	//if len(o.Method) == 0 {
-	//	o.Method = "nat"
-	//}
-	//
-	//o.Method = strings.ToLower(o.Method)
-	//if !ipvs_shim.ValidForwarding(o.Method) {
-	//	return ErrUnknownMethod
-	//}
-	//
-	//if o.Pulse == nil {
-	//	// It doesn't make much sense to have a backend with no Pulse.
-	//	o.Pulse = &pulse.Options{}
-	//}
-
-	return nil
-}
-
-func (b *Backend) CompareStoreOptions(options *Backend) bool {
-	//if o.Host != options.Host {
-	//	return false
-	//}
-	//if o.Port != options.Port {
-	//	return false
-	//}
-	//if o.Method != options.Method {
-	//	return false
-	//}
-	return true
 }

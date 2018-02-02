@@ -26,43 +26,43 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-func (ctx *Context) pulseHandler() {
+func (s *Context) pulseHandler() {
 	stash := make(map[pulse.ID]uint32)
 
 	for {
 		select {
-		case u := <-ctx.pulseCh:
-			ctx.processPulseUpdate(stash, u)
-		case <-ctx.stopCh:
+		case u := <-s.pulseCh:
+			s.processPulseUpdate(stash, u)
+		case <-s.stopCh:
 			log.Debug("notificationLoop has been stopped")
 			return
 		}
 	}
 }
 
-func (ctx *Context) processPulseUpdate(stash map[pulse.ID]uint32, u pulse.Update) {
+func (s *Context) processPulseUpdate(stash map[pulse.ID]uint32, u pulse.Update) {
 	vsID, rsID := u.Source.VsID, u.Source.RsID
 
-	ctx.mutex.Lock()
+	s.mutex.Lock()
 
 	// check exist
-	if _, ok := ctx.backends[rsID]; !ok || u.Metrics.Status == pulse.StatusRemoved {
+	if _, ok := s.backends[rsID]; !ok || u.Metrics.Status == pulse.StatusRemoved {
 		if _, exists := stash[u.Source]; exists {
 			log.Debugf("backend %s has been deleted, so deleting it from stash too", u.Source)
 			delete(stash, u.Source)
 		}
-		ctx.mutex.Unlock()
+		s.mutex.Unlock()
 		return
 	}
 
-	if ctx.backends[rsID].metrics.Status != u.Metrics.Status {
+	if s.backends[rsID].metrics.Status != u.Metrics.Status {
 		log.Warnf("backend %s status: %s", u.Source, u.Metrics.Status)
 	}
 
 	// This is a copy of metrics structure from Pulse.
-	ctx.backends[rsID].metrics = u.Metrics
+	s.backends[rsID].metrics = u.Metrics
 
-	ctx.mutex.Unlock()
+	s.mutex.Unlock()
 
 	switch u.Metrics.Status {
 	case pulse.StatusUp:
@@ -76,7 +76,7 @@ func (ctx *Context) processPulseUpdate(stash map[pulse.ID]uint32, u pulse.Update
 		// Calculate a relative weight considering backend's health.
 		weight = uint32(float64(weight) * u.Metrics.Health)
 
-		if _, err := ctx.UpdateBackend(vsID, rsID, weight); err != nil {
+		if _, err := s.UpdateBackend(vsID, rsID, weight); err != nil {
 			log.Errorf("error while unstashing a backend: %s", err)
 		} else if weight == stash[u.Source] {
 			log.Debugf("backend %s has completely recovered, so deleting it from stash.", u.Source)
@@ -89,7 +89,7 @@ func (ctx *Context) processPulseUpdate(stash map[pulse.ID]uint32, u pulse.Update
 			return
 		}
 
-		if weight, err := ctx.UpdateBackend(vsID, rsID, 0); err != nil {
+		if weight, err := s.UpdateBackend(vsID, rsID, 0); err != nil {
 			log.Errorf("error while stashing a backend: %s", err)
 		} else {
 			stash[u.Source] = weight

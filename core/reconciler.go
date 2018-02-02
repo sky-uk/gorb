@@ -31,6 +31,8 @@ type reconciler struct {
 	syncCh chan struct{}
 	store  reconcilerStore
 	ipvs   ipvs_shim.IPVS
+	flush  bool
+	stopCh <-chan struct{}
 }
 
 type reconcilerStore interface {
@@ -39,15 +41,26 @@ type reconcilerStore interface {
 }
 
 // New returns a reconciler that populates the ipvs state periodically and on demand.
-func NewReconciler(period time.Duration, store reconcilerStore) *reconciler {
+func NewReconciler(period time.Duration, store reconcilerStore, flush bool, stopCh <-chan struct{}) *reconciler {
 	return &reconciler{
 		period: period,
 		syncCh: make(chan struct{}),
 		store:  store,
+		ipvs:   ipvs_shim.New(),
+		flush:  flush,
+		stopCh: stopCh,
 	}
 }
 
-func (r *reconciler) Start() {
+func (r *reconciler) Start() error {
+	if err := r.ipvs.Init(); err != nil {
+		return err
+	}
+	if r.flush {
+		if err := r.ipvs.Flush(); err != nil {
+			return err
+		}
+	}
 	go func() {
 		for {
 			t := time.NewTimer(r.period)
@@ -56,9 +69,13 @@ func (r *reconciler) Start() {
 				r.reconcile()
 			case <-r.syncCh:
 				r.reconcile()
+			case <-r.stopCh:
+				log.Infof("stopping reconciler")
+				return
 			}
 		}
 	}()
+	return nil
 }
 
 func (r *reconciler) Sync() {

@@ -100,7 +100,6 @@ func main() {
 	defer store.Close()
 
 	ctx, err := core.NewContext(core.ContextOptions{
-		Disco:        *consul,
 		Endpoints:    hostIPs,
 		Flush:        *flush,
 		ListenPort:   listenPort,
