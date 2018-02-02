@@ -33,6 +33,7 @@ import (
 
 	"github.com/containous/traefik/log"
 	"github.com/gorilla/mux"
+	"github.com/kobolog/gorb/pulse"
 	"github.com/kobolog/gorb/types"
 )
 
@@ -48,6 +49,14 @@ type serviceRequest struct {
 	Protocol  string `json:"protocol"`
 	Scheduler string `json:"scheduler"`
 	Flags     string `json:"flags"`
+}
+
+type backendRequest struct {
+	Host         string         `json:"host"`
+	Port         uint16         `json:"port"`
+	Weight       uint32         `json:"weight"`
+	Method       string         `json:"method"`
+	PulseOptions *pulse.Options `json:"pulse"`
 }
 
 func writeJSON(w http.ResponseWriter, obj interface{}) {
@@ -145,15 +154,41 @@ type backendCreateHandler struct {
 	ctx *core.Context
 }
 
+func fillInBackend(backend *types.Backend, vars map[string]string, req backendRequest) error {
+	backend.StoreID = vars["rsID"]
+	if len(backend.StoreID) == 0 {
+		log.Warnf("rsID is required, but was empty")
+		return badRequest
+	}
+	ips, err := net.LookupIP(req.Host)
+	if err != nil {
+		log.Warnf("invalid host %q: %v", req.Host, err)
+		return badRequest
+	}
+	backend.IP = ips[0]
+	backend.Port = req.Port
+	backend.Weight = req.Weight
+	backend.Forward = req.Method
+	backend.PulseOptions = req.PulseOptions
+	return nil
+}
+
 func (h backendCreateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var (
-		opts core.BackendOptions
-		vars = mux.Vars(r)
+		req     backendRequest
+		backend types.Backend
+		vars    = mux.Vars(r)
 	)
 
-	if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, err)
-	} else if err := h.ctx.CreateBackend(vars["vsID"], vars["rsID"], &opts); err != nil {
+	}
+
+	if err := fillInBackend(&backend, vars, req); err != nil {
+		writeError(w, err)
+	}
+
+	if err := h.ctx.CreateBackend(vars["vsID"], &backend); err != nil {
 		writeError(w, err)
 	}
 }
@@ -164,13 +199,20 @@ type backendUpdateHandler struct {
 
 func (h backendUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var (
-		opts core.BackendOptions
-		vars = mux.Vars(r)
+		req     backendRequest
+		backend types.Backend
+		vars    = mux.Vars(r)
 	)
 
-	if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, err)
-	} else if _, err := h.ctx.UpdateBackend(vars["vsID"], vars["rsID"], opts.Weight); err != nil {
+	}
+
+	if err := fillInBackend(&backend, vars, req); err != nil {
+		writeError(w, err)
+	}
+
+	if err := h.ctx.UpdateBackend(vars["vsID"], &backend); err != nil {
 		writeError(w, err)
 	}
 }

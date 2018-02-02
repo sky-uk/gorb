@@ -181,6 +181,13 @@ func (s *Context) updateService(vsID string, opts *types.Service) error {
 	return nil
 }
 
+// CreateBackend registers a new backend with a virtual service.
+func (s *Context) CreateBackend(vsID string, opts *types.Backend) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	return s.createBackend(vsID, rsID, opts)
+}
+
 // CreateService registers a new virtual service with IPVS.
 func (s *Context) UpdateService(opts *types.Service) error {
 	s.Lock()
@@ -242,13 +249,6 @@ func (s *Context) UpdateService(opts *types.Service) error {
 	return nil
 }
 
-// CreateBackend registers a new backend with a virtual service.
-func (s *Context) CreateBackend(vsID, rsID string, opts *types.Backend) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	return s.createBackend(vsID, rsID, opts)
-}
-
 // UpdateBackend updates the specified backend's weight.
 func (s *Context) updateBackend(vsID, rsID string, weight uint32) (uint32, error) {
 	rs, exists := s.backends[rsID]
@@ -291,7 +291,7 @@ func (s *Context) updateBackend(vsID, rsID string, weight uint32) (uint32, error
 }
 
 // UpdateBackend updates the specified backend's weight.
-func (s *Context) UpdateBackend(vsID, rsID string, weight uint32) (uint32, error) {
+func (s *Context) UpdateBackend(vsID string, backend *types.Backend) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	return s.updateBackend(vsID, rsID, weight)
