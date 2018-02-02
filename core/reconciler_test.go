@@ -97,23 +97,28 @@ func TestReconcile(t *testing.T) {
 		StoreID:    "svc2",
 	}
 
+	backendKey1 := types.BackendKey{
+		IP:   net.ParseIP("172.16.1.1"),
+		Port: 501,
+	}
 	backend1 := &types.Backend{
-		IP:      net.ParseIP("172.16.1.1"),
-		Port:    501,
-		Weight:  1.0,
-		Forward: "dr",
+		BackendKey: backendKey1,
+		Weight:     1.0,
+		Forward:    "dr",
 	}
 	backend1u := &types.Backend{
-		IP:      net.ParseIP("172.16.1.1"),
-		Port:    501,
-		Weight:  0.0,
-		Forward: "dr",
+		BackendKey: backendKey1,
+		Weight:     0.0,
+		Forward:    "dr",
+	}
+	backendKey2 := types.BackendKey{
+		IP:   net.ParseIP("172.16.1.2"),
+		Port: 502,
 	}
 	backend2 := &types.Backend{
-		IP:      net.ParseIP("172.16.1.2"),
-		Port:    502,
-		Weight:  1.0,
-		Forward: "dr",
+		BackendKey: backendKey2,
+		Weight:     1.0,
+		Forward:    "dr",
 	}
 
 	type keyToBackends map[*types.Service][]*types.Backend

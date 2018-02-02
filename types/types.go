@@ -114,38 +114,42 @@ func (s *Service) Fill(defaultHost net.IP) error {
 	return nil
 }
 
-func (s *ServiceKey) Equal(other *ServiceKey) bool {
+func (s *ServiceKey) Equal(other ServiceKey) bool {
 	return s.VIP.Equal(other.VIP) &&
 		s.Port == other.Port &&
 		s.Protocol == other.Protocol
 }
 
 func (s *Service) Equal(other *Service) bool {
-	return s.ServiceKey.Equal(&other.ServiceKey) &&
+	return s.ServiceKey.Equal(other.ServiceKey) &&
 		s.Flagset().Equal(other.Flagset()) &&
 		s.Scheduler == other.Scheduler
 }
 
+type BackendKey struct {
+	IP   net.IP `json:"ip"`
+	Port uint16 `json:"port"`
+}
+
 // Backend describe a virtual service backend.
 type Backend struct {
-	IP      net.IP `json:"ip"`
-	Port    uint16 `json:"port"`
+	BackendKey
 	Weight  uint32 `json:"weight"`
 	Forward string `json:"forward"`
 	// Pulse is optional and unused by ipvs.
 	Pulse *pulse.Options `json:"pulse,omitempty"`
 }
 
-func (b *Backend) EqualKey(o *Backend) bool {
+func (b *BackendKey) Equal(o BackendKey) bool {
 	return b.IP.Equal(o.IP) && b.Port == o.Port
 }
 
 func (b *Backend) Equal(o *Backend) bool {
-	return b.EqualKey(o) && b.Weight == o.Weight && b.Forward == o.Forward
+	return b.BackendKey.Equal(o.BackendKey) && b.Weight == o.Weight && b.Forward == o.Forward
 }
 
 // Fill missing fields and validates backend configuration.
-func (o *Backend) Fill() error {
+func (b *Backend) Fill() error {
 	//if len(o.Host) == 0 || o.Port == 0 {
 	//	return ErrMissingEndpoint
 	//}
@@ -177,7 +181,7 @@ func (o *Backend) Fill() error {
 	return nil
 }
 
-func (o *Backend) CompareStoreOptions(options *Backend) bool {
+func (b *Backend) CompareStoreOptions(options *Backend) bool {
 	//if o.Host != options.Host {
 	//	return false
 	//}

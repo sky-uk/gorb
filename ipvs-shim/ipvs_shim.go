@@ -270,8 +270,10 @@ func (s *shim) ListBackends(key *types.ServiceKey) ([]*types.Backend, error) {
 			return nil, fmt.Errorf("unable to list backends, unexpected forward method %#x", dest.FwdMethod)
 		}
 		backend := &types.Backend{
-			IP:      dest.Address,
-			Port:    dest.Port,
+			BackendKey: types.BackendKey{
+				IP:   dest.Address,
+				Port: dest.Port,
+			},
 			Weight:  dest.Weight,
 			Forward: fwd,
 		}

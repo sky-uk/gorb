@@ -23,8 +23,10 @@ func TestCollector(t *testing.T) {
 		Scheduler: "wlc",
 	}}
 	ctx.backends["service1-backend1"] = &backend{options: &types.Backend{
-		IP:      net.ParseIP("127.0.0.1"),
-		Port:    1234,
+		BackendKey: types.BackendKey{
+			IP:   net.ParseIP("127.0.0.1"),
+			Port: 1234,
+		},
 		Weight:  1,
 		Forward: "nat",
 	}, service: ctx.services["service1"], monitor: &pulse.Pulse{}}

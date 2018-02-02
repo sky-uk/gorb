@@ -82,7 +82,7 @@ func (r *reconciler) reconcile() {
 	for _, desired := range desiredServices {
 		var match *types.Service
 		for _, actual := range actualServices {
-			if desired.ServiceKey.Equal(&actual.ServiceKey) {
+			if desired.ServiceKey.Equal(actual.ServiceKey) {
 				match = actual
 				break
 			}
@@ -109,7 +109,7 @@ func (r *reconciler) reconcile() {
 		for _, desiredBackend := range desiredBackends {
 			var match *types.Backend
 			for _, actual := range actualBackends {
-				if desiredBackend.EqualKey(actual) {
+				if desiredBackend.BackendKey.Equal(actual.BackendKey) {
 					match = actual
 					break
 				}
@@ -124,7 +124,7 @@ func (r *reconciler) reconcile() {
 		for _, actual := range actualBackends {
 			var found bool
 			for _, desiredBackend := range desiredBackends {
-				if actual.EqualKey(desiredBackend) {
+				if actual.BackendKey.Equal(desiredBackend.BackendKey) {
 					found = true
 					break
 				}
@@ -139,7 +139,7 @@ func (r *reconciler) reconcile() {
 	for _, actual := range actualServices {
 		var found bool
 		for _, desired := range desiredServices {
-			if actual.ServiceKey.Equal(&desired.ServiceKey) {
+			if actual.ServiceKey.Equal(desired.ServiceKey) {
 				found = true
 				break
 			}
