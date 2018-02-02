@@ -24,6 +24,9 @@ import (
 	"errors"
 	"net"
 
+	"fmt"
+	"strings"
+
 	"github.com/deckarep/golang-set"
 	"github.com/kobolog/gorb/pulse"
 )
@@ -44,25 +47,32 @@ type ServiceKey struct {
 
 // Service describes a virtual service.
 type Service struct {
-	ServiceKey `json:"serviceKey"`
-	Scheduler  string   `json:"scheduler"`
-	Flags      []string `json:"flags"`
+	ServiceKey
+	Scheduler string   `json:"scheduler"`
+	Flags     []string `json:"flags"`
+	// StoreID uniquely identifies the virtual service in the store.
+	StoreID string `json:"id"`
 }
 
-func (o *Service) HostIP() net.IP {
-	return o.VIP
+func (s *Service) String() string {
+	return fmt.Sprintf("%s:%d (%s) [%s (%s)]", s.VIP.String(), s.Port, s.Protocol, s.Scheduler,
+		strings.Join(s.Flags, ","))
 }
 
-func (o *Service) Flagset() mapset.Set {
-	s := mapset.NewThreadUnsafeSet()
-	for _, f := range o.Flags {
-		s.Add(f)
+func (s *Service) HostIP() net.IP {
+	return s.VIP
+}
+
+func (s *Service) Flagset() mapset.Set {
+	fs := mapset.NewThreadUnsafeSet()
+	for _, f := range s.Flags {
+		fs.Add(f)
 	}
-	return s
+	return fs
 }
 
 // Fill missing fields and validates virtual service configuration.
-func (o *Service) Fill(defaultHost net.IP) error {
+func (s *Service) Fill(defaultHost net.IP) error {
 	//if o.Port == 0 {
 	//	return ErrMissingEndpoint
 	//}
@@ -110,10 +120,10 @@ func (s *ServiceKey) Equal(other *ServiceKey) bool {
 		s.Protocol == other.Protocol
 }
 
-func (o *Service) Equal(other *Service) bool {
-	return o.ServiceKey.Equal(&other.ServiceKey) &&
-		o.Flagset().Equal(other.Flagset()) &&
-		o.Scheduler == other.Scheduler
+func (s *Service) Equal(other *Service) bool {
+	return s.ServiceKey.Equal(&other.ServiceKey) &&
+		s.Flagset().Equal(other.Flagset()) &&
+		s.Scheduler == other.Scheduler
 }
 
 // Backend describe a virtual service backend.
@@ -123,7 +133,7 @@ type Backend struct {
 	Weight  uint32 `json:"weight"`
 	Forward string `json:"forward"`
 	// Pulse is optional and unused by ipvs.
-	Pulse *pulse.Options `json:"pulse"`
+	Pulse *pulse.Options `json:"pulse,omitempty"`
 }
 
 // Fill missing fields and validates backend configuration.

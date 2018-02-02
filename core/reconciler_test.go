@@ -52,8 +52,8 @@ func (i *ipvsMock) ListServices() ([]*types.Service, error) {
 	return args.Get(0).([]*types.Service), args.Error(1)
 }
 func (i *ipvsMock) AddBackend(key *types.ServiceKey, backend *types.Backend) error {
-	panic("not implemented")
-	return nil
+	args := i.Mock.Called(key, backend)
+	return args.Error(0)
 }
 func (i *ipvsMock) UpdateBackend(key *types.ServiceKey, backend *types.Backend) error {
 	panic("not implemented")
@@ -78,6 +78,7 @@ func TestReconcile(t *testing.T) {
 		ServiceKey: svcKey1,
 		Scheduler:  "sh",
 		Flags:      []string{"flag-1", "flag-2"},
+		StoreID:    "svc1",
 	}
 	svc1u := &types.Service{
 		ServiceKey: svcKey1,
@@ -93,15 +94,31 @@ func TestReconcile(t *testing.T) {
 		ServiceKey: svcKey2,
 		Scheduler:  "rr",
 		Flags:      []string{"flag-1"},
+		StoreID:    "svc2",
 	}
 
+	backend1 := &types.Backend{
+		IP:      net.ParseIP("172.16.1.1"),
+		Port:    501,
+		Weight:  1.0,
+		Forward: "dr",
+	}
+
+	type keyToBackends map[*types.Service][]*types.Backend
+
 	tests := []struct {
-		name            string
+		name string
+
+		// services
 		actualServices  []*types.Service
 		desiredServices []*types.Service
 		createdServices []*types.Service
 		updatedServices []*types.Service
 		deletedServices []*types.Service
+
+		// backends
+		desiredBackends keyToBackends
+		createdBackends keyToBackends
 	}{
 		{
 			name:            "add new service",
@@ -126,6 +143,13 @@ func TestReconcile(t *testing.T) {
 			desiredServices: []*types.Service{svc1},
 			deletedServices: []*types.Service{svc2},
 		},
+		{
+			name:            "add backend",
+			actualServices:  []*types.Service{svc1},
+			desiredServices: []*types.Service{svc1},
+			desiredBackends: keyToBackends{svc1: {backend1}},
+			createdBackends: keyToBackends{svc1: {backend1}},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -146,6 +170,7 @@ func TestReconcile(t *testing.T) {
 			}
 
 			// add expectations for store and ipvs
+			// services
 			ipvsMock.On("ListServices").Return(tt.actualServices, nil)
 			storeMock.On("ListServices").Return(tt.desiredServices, nil)
 			for _, s := range tt.createdServices {
@@ -156,6 +181,15 @@ func TestReconcile(t *testing.T) {
 			}
 			for _, s := range tt.deletedServices {
 				ipvsMock.On("DeleteService", &s.ServiceKey).Return(nil)
+			}
+			// backends
+			for k, v := range tt.desiredBackends {
+				storeMock.On("ListBackends", k.StoreID).Return(v, nil)
+			}
+			for k, v := range tt.createdBackends {
+				for _, backend := range v {
+					ipvsMock.On("AddBackend", &k.ServiceKey, backend).Return(nil)
+				}
 			}
 
 			// reconcile

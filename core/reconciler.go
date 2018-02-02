@@ -71,17 +71,11 @@ func (r *reconciler) reconcile() {
 		log.Errorf("unable to populate: %v", err)
 		return
 	}
-	for _, s := range desiredServices {
-		log.Infof("DESIRED SERVICE: %v", *s)
-	}
 
 	actualServices, err := r.ipvs.ListServices()
 	if err != nil {
 		log.Errorf("unable to populate: %v", err)
 		return
-	}
-	for _, s := range actualServices {
-		log.Infof("ACTUAL SERVICE: %v", *s)
 	}
 
 	for _, desired := range desiredServices {
@@ -93,8 +87,10 @@ func (r *reconciler) reconcile() {
 			}
 		}
 		if match == nil {
+			log.Infof("Adding new service: %v", desired)
 			r.ipvs.AddService(desired)
 		} else if !desired.Equal(match) {
+			log.Infof("Updating service: %v", desired)
 			r.ipvs.UpdateService(desired)
 		}
 	}
