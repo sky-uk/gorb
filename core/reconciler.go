@@ -120,6 +120,19 @@ func (r *reconciler) reconcile() {
 				r.ipvs.UpdateBackend(&desired.ServiceKey, desiredBackend)
 			}
 		}
+
+		for _, actual := range actualBackends {
+			var found bool
+			for _, desiredBackend := range desiredBackends {
+				if actual.EqualKey(desiredBackend) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				r.ipvs.DeleteBackend(&desired.ServiceKey, actual)
+			}
+		}
 	}
 
 	// delete services

@@ -60,8 +60,8 @@ func (i *ipvsMock) UpdateBackend(key *types.ServiceKey, backend *types.Backend) 
 	return args.Error(0)
 }
 func (i *ipvsMock) DeleteBackend(key *types.ServiceKey, backend *types.Backend) error {
-	panic("not implemented")
-	return nil
+	args := i.Mock.Called(key, backend)
+	return args.Error(0)
 }
 func (i *ipvsMock) ListBackends(key *types.ServiceKey) ([]*types.Backend, error) {
 	args := i.Mock.Called(key)
@@ -174,6 +174,14 @@ func TestReconcile(t *testing.T) {
 			desiredBackends: keyToBackends{svc1: {backend1u, backend2}},
 			updatedBackends: keyToBackends{svc1: {backend1u}},
 		},
+		{
+			name:            "delete backend",
+			actualServices:  []*types.Service{svc1},
+			desiredServices: []*types.Service{svc1},
+			actualBackends:  keyToBackends{svc1: {backend1, backend2}},
+			desiredBackends: keyToBackends{svc1: {backend2}},
+			deletedBackends: keyToBackends{svc1: {backend1}},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -235,6 +243,11 @@ func TestReconcile(t *testing.T) {
 			for k, v := range tt.updatedBackends {
 				for _, backend := range v {
 					ipvsMock.On("UpdateBackend", &k.ServiceKey, backend).Return(nil)
+				}
+			}
+			for k, v := range tt.deletedBackends {
+				for _, backend := range v {
+					ipvsMock.On("DeleteBackend", &k.ServiceKey, backend).Return(nil)
 				}
 			}
 
