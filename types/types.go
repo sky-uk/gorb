@@ -136,8 +136,10 @@ type Backend struct {
 	BackendKey
 	Weight  uint32 `json:"weight"`
 	Forward string `json:"forward"`
+	// StoreID uniquely identifies the backend in the store. It's optional and unused by ipvs.
+	StoreID string `json:"id"`
 	// Pulse is optional and unused by ipvs.
-	Pulse *pulse.Options `json:"pulse,omitempty"`
+	PulseOptions *pulse.Options `json:"pulse"`
 }
 
 func (b *BackendKey) Equal(o BackendKey) bool {
