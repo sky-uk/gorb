@@ -103,6 +103,12 @@ func TestReconcile(t *testing.T) {
 		Weight:  1.0,
 		Forward: "dr",
 	}
+	backend2 := &types.Backend{
+		IP:      net.ParseIP("172.16.1.2"),
+		Port:    502,
+		Weight:  1.0,
+		Forward: "dr",
+	}
 
 	type keyToBackends map[*types.Service][]*types.Backend
 
@@ -148,8 +154,8 @@ func TestReconcile(t *testing.T) {
 			name:            "add backend",
 			actualServices:  []*types.Service{svc1},
 			desiredServices: []*types.Service{svc1},
-			desiredBackends: keyToBackends{svc1: {backend1}},
-			createdBackends: keyToBackends{svc1: {backend1}},
+			desiredBackends: keyToBackends{svc1: {backend1, backend2}},
+			createdBackends: keyToBackends{svc1: {backend1, backend2}},
 		},
 	}
 	for _, tt := range tests {
