@@ -64,8 +64,8 @@ func (i *ipvsMock) DeleteBackend(key *types.ServiceKey, backend *types.Backend) 
 	return nil
 }
 func (i *ipvsMock) ListBackends(key *types.ServiceKey) ([]*types.Backend, error) {
-	panic("not implemented")
-	return nil, nil
+	args := i.Mock.Called(key)
+	return args.Get(0).([]*types.Backend), args.Error(1)
 }
 
 func TestReconcile(t *testing.T) {
@@ -117,6 +117,7 @@ func TestReconcile(t *testing.T) {
 		deletedServices []*types.Service
 
 		// backends
+		actualBackends  keyToBackends
 		desiredBackends keyToBackends
 		createdBackends keyToBackends
 	}{
@@ -168,6 +169,20 @@ func TestReconcile(t *testing.T) {
 			if tt.desiredServices == nil {
 				tt.desiredServices = []*types.Service{}
 			}
+			if tt.actualBackends == nil {
+				tt.actualBackends = make(keyToBackends)
+			}
+			if tt.desiredBackends == nil {
+				tt.desiredBackends = make(keyToBackends)
+			}
+			for _, svc := range tt.desiredServices {
+				if _, ok := tt.actualBackends[svc]; !ok {
+					tt.actualBackends[svc] = []*types.Backend{}
+				}
+				if _, ok := tt.desiredBackends[svc]; !ok {
+					tt.desiredBackends[svc] = []*types.Backend{}
+				}
+			}
 
 			// add expectations for store and ipvs
 			// services
@@ -185,6 +200,9 @@ func TestReconcile(t *testing.T) {
 			// backends
 			for k, v := range tt.desiredBackends {
 				storeMock.On("ListBackends", k.StoreID).Return(v, nil)
+			}
+			for k, v := range tt.actualBackends {
+				ipvsMock.On("ListBackends", &k.ServiceKey).Return(v, nil)
 			}
 			for k, v := range tt.createdBackends {
 				for _, backend := range v {

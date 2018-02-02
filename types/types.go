@@ -50,7 +50,7 @@ type Service struct {
 	ServiceKey
 	Scheduler string   `json:"scheduler"`
 	Flags     []string `json:"flags"`
-	// StoreID uniquely identifies the virtual service in the store.
+	// StoreID uniquely identifies the virtual service in the store. It's optional and unused by ipvs.
 	StoreID string `json:"id"`
 }
 
@@ -134,6 +134,14 @@ type Backend struct {
 	Forward string `json:"forward"`
 	// Pulse is optional and unused by ipvs.
 	Pulse *pulse.Options `json:"pulse,omitempty"`
+}
+
+func (b *Backend) EqualKey(o *Backend) bool {
+	return b.IP.Equal(o.IP) && b.Port == o.Port
+}
+
+func (b *Backend) Equal(o *Backend) bool {
+	return b.EqualKey(o) && b.Weight == o.Weight && b.Forward == o.Forward
 }
 
 // Fill missing fields and validates backend configuration.

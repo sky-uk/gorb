@@ -78,6 +78,7 @@ func (r *reconciler) reconcile() {
 		return
 	}
 
+	// create or update services
 	for _, desired := range desiredServices {
 		var match *types.Service
 		for _, actual := range actualServices {
@@ -93,8 +94,35 @@ func (r *reconciler) reconcile() {
 			log.Infof("Updating service: %v", desired)
 			r.ipvs.UpdateService(desired)
 		}
+
+		desiredBackends, err := r.store.ListBackends(desired.StoreID)
+		if err != nil {
+			log.Errorf("unable to list backends in store: %v", desired.StoreID, err)
+			continue
+		}
+		actualBackends, err := r.ipvs.ListBackends(&desired.ServiceKey)
+		if err != nil {
+			log.Errorf("unable to list backends in ipvs: %v")
+			continue
+		}
+
+		for _, desiredBackend := range desiredBackends {
+			var match *types.Backend
+			for _, actual := range actualBackends {
+				if desiredBackend.EqualKey(actual) {
+					match = actual
+					break
+				}
+			}
+			if match == nil {
+				r.ipvs.AddBackend(&desired.ServiceKey, desiredBackend)
+			} else if !desiredBackend.Equal(match) {
+				// update
+			}
+		}
 	}
 
+	// delete services
 	for _, actual := range actualServices {
 		var found bool
 		for _, desired := range desiredServices {
@@ -107,62 +135,4 @@ func (r *reconciler) reconcile() {
 			r.ipvs.DeleteService(&actual.ServiceKey)
 		}
 	}
-
-	//desiredBackends, err := r.store.ListBackends("fixme")
-	//if err != nil {
-	//	log.Errorf("unable to populate: %v", err)
-	//	return
-	//}
-	//for _, v := range desiredServices {
-	//	log.Debugf("SERVICE: %s", v)
-	//}
-	//for _, v := range desiredBackends {
-	//	log.Debugf("  BACKEND: %s", v)
-	//}
-
-	//for _, actualService := range actualServices {
-	//	actualBackends, err := r.ListBackends()
-	//	if err != nil {
-	//		log.Errorf("unable to populate: %v", err)
-	//		return
-	//	}
-	//}
-
-	// synchronize services with store
-	//for id, _ := range ctx.services {
-	//	if _, ok := storeServices[id]; !ok {
-	//		ctx.removeService(id)
-	//	}
-	//}
-	//for id, storeServiceOptions := range storeServices {
-	//	if service, ok := ctx.services[id]; ok {
-	//		if service.options.CompareStoreOptions(storeServiceOptions) {
-	//			continue
-	//		}
-	//		ctx.removeService(id)
-	//	}
-	//	ctx.createService(id, storeServiceOptions)
-	//}
-	//
-	//// synchronize backends with store
-	//for id, backend := range ctx.backends {
-	//	if _, ok := storeBackends[id]; !ok {
-	//		vsID := "(unknown)"
-	//		if len(backend.options.VsID) > 0 {
-	//			vsID = backend.options.VsID
-	//		}
-	//		ctx.removeBackend(vsID, id)
-	//	}
-	//}
-	//for id, storeBackendOptions := range storeBackends {
-	//	if backend, ok := ctx.backends[id]; ok {
-	//		if backend.options.CompareStoreOptions(storeBackendOptions) {
-	//			continue
-	//		}
-	//		ctx.removeBackend(storeBackendOptions.VsID, id)
-	//	}
-	//	if err := ctx.createBackend(storeBackendOptions.VsID, id, storeBackendOptions); err != nil {
-	//		log.Warnf("create backend error: %s", err.Error())
-	//	}
-	//}
 }
